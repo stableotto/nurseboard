@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NurseBoard - Nursing Jobs Aggregated Daily from 500+ Employers</title>
+  <meta name="description" content="Browse thousands of nursing jobs aggregated daily from top healthcare employers. RN, LPN, CNA, NP, travel nurse, and more. Salary data and direct application links.">
+  <link rel="canonical" href="https://nurseboard.pages.dev/">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="header">
+    <div class="container">
+      <a href="/" class="logo">NurseBoard</a>
+      <span class="tagline">Nursing jobs, aggregated daily</span>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="search-section">
+      <input type="text" id="search" class="search-input" placeholder="Search by title, company, or location...">
+    </section>
+
+    <div class="filter-row">
+      <select id="filter-state" class="filter-select">
+        <option value="">All States</option>
+      </select>
+      <select id="filter-ats" class="filter-select">
+        <option value="">All Sources</option>
+      </select>
+      <label class="filter-toggle">
+        <input type="checkbox" id="filter-salary"> Has Salary
+      </label>
+      <label class="filter-toggle">
+        <input type="checkbox" id="filter-recruiter"> Hide Recruiters
+      </label>
+    </div>
+
+    <div id="result-count" class="result-count"></div>
+
+    <div id="job-list" class="job-list"></div>
+    <div id="pagination" class="pagination"></div>
+  </main>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

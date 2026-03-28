@@ -1,0 +1,8 @@
+data/nursing_jobs.db
+__pycache__/
+*.pyc
+.env
+frontend/data/jobs.json
+frontend/data/meta.json
+frontend/data/jobs/
+.gstack/
