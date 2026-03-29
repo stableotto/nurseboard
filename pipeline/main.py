@@ -35,50 +35,68 @@ def main():
 
     # 3. Upsert into SQLite — track which are new this run
     conn = get_connection(DB_PATH)
+    existing_before = conn.execute("SELECT COUNT(*) FROM jobs").fetchone()[0]
     new_count = 0
+    new_by_ats = {}
+    updated_count = 0
     current_urls = set()
     for job in nursing_jobs:
         current_urls.add(job["url"])
         if upsert_job(conn, job):
             new_count += 1
+            ats = (job.get("ats") or "").lower()
+            new_by_ats[ats] = new_by_ats.get(ats, 0) + 1
+        else:
+            updated_count += 1
     conn.commit()
-    logger.info("Upserted %d jobs (%d new this run)", len(nursing_jobs), new_count)
+    logger.info("=== Upsert Breakdown ===")
+    logger.info("  Upstream nursing jobs: %d", len(nursing_jobs))
+    logger.info("  Already in DB (updated): %d", updated_count)
+    logger.info("  New jobs inserted: %d", new_count)
+    for ats, count in sorted(new_by_ats.items(), key=lambda x: -x[1]):
+        logger.info("    %s: %d new", ats, count)
 
     # 4. Mark removed jobs
     removed = mark_removed(conn, current_urls)
     conn.commit()
-    logger.info("Marked %d jobs as removed", removed)
+    logger.info("  Removed from upstream: %d", removed)
 
     # 5. Enrich only new/unenriched jobs
-    logger.info("Starting enrichment of %d new jobs...", new_count)
+    logger.info("=== Enrichment ===")
+    logger.info("  Jobs to enrich: %d", new_count)
     results = enrich_all(DB_PATH)
+    total_enriched = 0
+    total_failed = 0
     for r in results:
-        logger.info(
-            "  [%s] %d/%d enriched%s",
-            r["ats"], r["success"], r["total"],
-            " (SKIPPED)" if r["skipped"] else "",
-        )
+        if r["total"] > 0:
+            logger.info(
+                "  %s: %d/%d enriched, %d failed%s",
+                r["ats"], r["success"], r["total"], r["failed"],
+                " (SKIPPED — too many errors)" if r["skipped"] else "",
+            )
+        total_enriched += r["success"]
+        total_failed += r["failed"]
 
     # 6. Clean up: delete jobs that failed enrichment (stale/gone from ATS)
     cleaned = delete_unenriched(conn)
     conn.commit()
     if cleaned:
-        logger.info("Cleaned up %d unenrichable jobs", cleaned)
+        logger.info("  Cleaned up %d unenrichable jobs (404/gone)", cleaned)
 
     # 7. Export for frontend
     conn = get_connection(DB_PATH)
     exportable = get_exportable_jobs(conn)
     stats = get_stats(conn)
     export_for_frontend(exportable, stats)
-    logger.info("Exported %d jobs for frontend", len(exportable))
 
-    # Print summary
-    logger.info("=== Pipeline Summary ===")
-    logger.info("Total active jobs: %d", stats["total"])
-    logger.info("Enriched: %d", stats["enriched"])
-    logger.info("By platform: %s", stats["by_ats"])
-    logger.info("New today: %d", new_count)
-    logger.info("Exported: %d", len(exportable))
+    # Summary
+    logger.info("=== Daily Summary ===")
+    logger.info("  New jobs found: %d", new_count)
+    logger.info("  Successfully enriched: %d", total_enriched)
+    logger.info("  Failed/stale (deleted): %d", total_failed)
+    logger.info("  Removed from upstream: %d", removed)
+    logger.info("  Total jobs on site: %d", len(exportable))
+    logger.info("  By platform: %s", stats["by_ats"])
 
     conn.close()
 
