@@ -103,9 +103,6 @@ CATEGORY_TEMPLATE = """<!DOCTYPE html>
       <select id="filter-state" class="filter-select">
         <option value="">All States</option>
       </select>
-      <select id="filter-ats" class="filter-select">
-        <option value="">All Sources</option>
-      </select>
       <label class="filter-toggle">
         <input type="checkbox" id="filter-salary"> Has Salary
       </label>
@@ -120,7 +117,7 @@ CATEGORY_TEMPLATE = """<!DOCTYPE html>
 
     <section class="seo-content">
       <h2>About {heading} Jobs</h2>
-      <p>NurseBoard aggregates <strong>{heading_lower}</strong> positions from {source_count} healthcare employers across leading ATS platforms including Greenhouse, Lever, Workday, Ashby, and BambooHR. Jobs are updated daily with salary data, full descriptions, and direct application links.</p>
+      <p>NurseBoard aggregates <strong>{heading_lower}</strong> positions from {source_count} healthcare employers. Jobs are updated daily with salary data, full descriptions, and direct application links.</p>
       {extra_seo}
     </section>
   </main>
@@ -170,13 +167,6 @@ CATEGORY_TEMPLATE = """<!DOCTYPE html>
         return;
       }}
 
-      const platforms = [...new Set(allJobs.map(j => j.ats_platform).filter(Boolean))].sort();
-      platforms.forEach(p => {{
-        const opt = document.createElement("option");
-        opt.value = p; opt.textContent = p;
-        atsSelect.appendChild(opt);
-      }});
-
       const states = [...new Set(allJobs.map(j => j.state).filter(Boolean))].sort();
       states.forEach(s => {{
         const opt = document.createElement("option");
@@ -188,7 +178,6 @@ CATEGORY_TEMPLATE = """<!DOCTYPE html>
         const filtered = filterJobs(allJobs, {{
           query: searchInput.value,
           state: stateSelect.value,
-          ats: atsSelect.value,
           hasSalary: salaryToggle.checked,
           hideRecruiters: recruiterToggle.checked,
         }});
@@ -203,7 +192,7 @@ CATEGORY_TEMPLATE = """<!DOCTYPE html>
 
       let t;
       searchInput.addEventListener("input", () => {{ clearTimeout(t); t = setTimeout(() => {{ currentPage = 1; render(); }}, 200); }});
-      [stateSelect, atsSelect].forEach(el => el.addEventListener("change", () => {{ currentPage = 1; render(); }}));
+      stateSelect.addEventListener("change", () => {{ currentPage = 1; render(); }});
       [salaryToggle, recruiterToggle].forEach(el => el.addEventListener("change", () => {{ currentPage = 1; render(); }}));
       render();
     }}

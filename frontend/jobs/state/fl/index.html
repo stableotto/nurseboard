@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Nursing Jobs in Florida | NurseBoard</title>
-  <meta name="description" content="Browse 9 nursing jobs in Florida (FL). Updated daily with salary data and direct application links.">
+  <meta name="description" content="Browse 8 nursing jobs in Florida (FL). Updated daily with salary data and direct application links.">
   <link rel="canonical" href="https://nurseboard.pages.dev/jobs/state/fl/">
   <link rel="stylesheet" href="../../../css/style.css">
 </head>
@@ -19,7 +19,7 @@
   <main class="container">
     <div class="category-hero">
       <h1>Nursing Jobs in Florida</h1>
-      <p class="category-desc">Browse 9 nursing jobs in Florida. Updated daily with salary data and direct application links.</p>
+      <p class="category-desc">Browse 8 nursing jobs in Florida. Updated daily with salary data and direct application links.</p>
     </div>
 
     <section class="search-section">
@@ -29,9 +29,6 @@
     <div class="filter-row">
       <select id="filter-state" class="filter-select">
         <option value="">All States</option>
-      </select>
-      <select id="filter-ats" class="filter-select">
-        <option value="">All Sources</option>
       </select>
       <label class="filter-toggle">
         <input type="checkbox" id="filter-salary"> Has Salary
@@ -47,8 +44,8 @@
 
     <section class="seo-content">
       <h2>About Nursing Jobs in Florida Jobs</h2>
-      <p>NurseBoard aggregates <strong>nursing in Florida</strong> positions from 4 healthcare employers across leading ATS platforms including Greenhouse, Lever, Workday, Ashby, and BambooHR. Jobs are updated daily with salary data, full descriptions, and direct application links.</p>
-      <p>We track nursing positions in Florida from 4 healthcare employers. Roles include RN, LPN, CNA, nurse practitioner, and more.</p>
+      <p>NurseBoard aggregates <strong>nursing in Florida</strong> positions from 3 healthcare employers. Jobs are updated daily with salary data, full descriptions, and direct application links.</p>
+      <p>We track nursing positions in Florida from 3 healthcare employers. Roles include RN, LPN, CNA, nurse practitioner, and more.</p>
     </section>
   </main>
 
@@ -97,13 +94,6 @@
         return;
       }
 
-      const platforms = [...new Set(allJobs.map(j => j.ats_platform).filter(Boolean))].sort();
-      platforms.forEach(p => {
-        const opt = document.createElement("option");
-        opt.value = p; opt.textContent = p;
-        atsSelect.appendChild(opt);
-      });
-
       const states = [...new Set(allJobs.map(j => j.state).filter(Boolean))].sort();
       states.forEach(s => {
         const opt = document.createElement("option");
@@ -115,7 +105,6 @@
         const filtered = filterJobs(allJobs, {
           query: searchInput.value,
           state: stateSelect.value,
-          ats: atsSelect.value,
           hasSalary: salaryToggle.checked,
           hideRecruiters: recruiterToggle.checked,
         });
@@ -130,7 +119,7 @@
 
       let t;
       searchInput.addEventListener("input", () => { clearTimeout(t); t = setTimeout(() => { currentPage = 1; render(); }, 200); });
-      [stateSelect, atsSelect].forEach(el => el.addEventListener("change", () => { currentPage = 1; render(); }));
+      stateSelect.addEventListener("change", () => { currentPage = 1; render(); });
       [salaryToggle, recruiterToggle].forEach(el => el.addEventListener("change", () => { currentPage = 1; render(); }));
       render();
     }

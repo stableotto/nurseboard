@@ -30,9 +30,6 @@
       <select id="filter-state" class="filter-select">
         <option value="">All States</option>
       </select>
-      <select id="filter-ats" class="filter-select">
-        <option value="">All Sources</option>
-      </select>
       <label class="filter-toggle">
         <input type="checkbox" id="filter-salary"> Has Salary
       </label>
@@ -47,7 +44,7 @@
 
     <section class="seo-content">
       <h2>About Nursing Jobs in Georgia Jobs</h2>
-      <p>NurseBoard aggregates <strong>nursing in Georgia</strong> positions from 5 healthcare employers across leading ATS platforms including Greenhouse, Lever, Workday, Ashby, and BambooHR. Jobs are updated daily with salary data, full descriptions, and direct application links.</p>
+      <p>NurseBoard aggregates <strong>nursing in Georgia</strong> positions from 5 healthcare employers. Jobs are updated daily with salary data, full descriptions, and direct application links.</p>
       <p>We track nursing positions in Georgia from 5 healthcare employers. Roles include RN, LPN, CNA, nurse practitioner, and more.</p>
     </section>
   </main>
@@ -97,13 +94,6 @@
         return;
       }
 
-      const platforms = [...new Set(allJobs.map(j => j.ats_platform).filter(Boolean))].sort();
-      platforms.forEach(p => {
-        const opt = document.createElement("option");
-        opt.value = p; opt.textContent = p;
-        atsSelect.appendChild(opt);
-      });
-
       const states = [...new Set(allJobs.map(j => j.state).filter(Boolean))].sort();
       states.forEach(s => {
         const opt = document.createElement("option");
@@ -115,7 +105,6 @@
         const filtered = filterJobs(allJobs, {
           query: searchInput.value,
           state: stateSelect.value,
-          ats: atsSelect.value,
           hasSalary: salaryToggle.checked,
           hideRecruiters: recruiterToggle.checked,
         });
@@ -130,7 +119,7 @@
 
       let t;
       searchInput.addEventListener("input", () => { clearTimeout(t); t = setTimeout(() => { currentPage = 1; render(); }, 200); });
-      [stateSelect, atsSelect].forEach(el => el.addEventListener("change", () => { currentPage = 1; render(); }));
+      stateSelect.addEventListener("change", () => { currentPage = 1; render(); });
       [salaryToggle, recruiterToggle].forEach(el => el.addEventListener("change", () => { currentPage = 1; render(); }));
       render();
     }

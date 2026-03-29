@@ -1,7 +1,31 @@
 /**
  * Search and filter logic.
  */
-export function filterJobs(jobs, { query, state, ats, hasSalary, hideRecruiters }) {
+
+const ROLE_PATTERNS = {
+  "rn": /\bRN\b|\bregistered\s+nurse\b/i,
+  "lpn-lvn": /\bLPN\b|\bLVN\b|\blicensed\s+(?:practical|vocational)\s+nurse\b/i,
+  "cna": /\bCNA\b|\bcertified\s+nurs(?:e|ing)\s+assistant\b|\bnurse\s+aide\b/i,
+  "np": /\bNP\b|\bnurse\s+practitioner\b|\bAPRN\b|\badvanced\s+practice\b/i,
+  "case-manager": /\bcase\s+manag(?:er|ement)\b/i,
+  "travel-nurse": /\btravel\s+nurs(?:e|ing)\b/i,
+  "charge-nurse": /\bcharge\s+nurse\b/i,
+  "nurse-manager": /\bnurse\s+manager\b|\bnursing\s+manager\b|\bdirector.*nurs/i,
+  "icu": /\bICU\b|\bintensive\s+care\b|\bcritical\s+care\b/i,
+  "er": /\bER\b.*nurs|\bemergency\b.*nurs|\bnurs.*\bemergency\b|\bemergency\s+(?:room|department)\b/i,
+  "or-nurse": /\bOR\s+nurs|\bsurg(?:ical|ery)\b.*nurs|\bnurs.*\bsurg(?:ical|ery)\b|\boperating\s+room\b/i,
+  "home-health": /\bhome\s+health\b|\bhome\s+care\b|\bhospice\b/i,
+  "med-surg": /\bmed[\s\-]?surg\b|\bmedical[\s\-]?surgical\b/i,
+  "pediatric": /\bpediatric\b|\bNICU\b|\bPICU\b|\bneonatal\b/i,
+  "psych": /\bpsych(?:iatric)?\b.*nurs|\bnurs.*\bpsych|\bmental\s+health\b|\bbehavioral\s+health\b/i,
+  "oncology": /\boncology\b|\bcancer\b.*nurs|\bnurs.*\bcancer\b/i,
+  "crna": /\bCRNA\b|\bnurse\s+anesthetist\b|\banesthesia\b.*nurs/i,
+  "midwife": /\bmidwi(?:fe|very|ves)\b/i,
+  "educator": /\bnurse\s+educator\b|\bnursing\s+(?:instructor|faculty|professor)\b|\bclinical\s+educator\b/i,
+  "telehealth": /\bremote\b|\btelehealth\b|\btelemedicine\b|\bvirtual\s+(?:care|nurse|nursing)\b/i,
+};
+
+export function filterJobs(jobs, { query, role, state, hasSalary, hideRecruiters }) {
   let filtered = jobs;
 
   if (query) {
@@ -14,12 +38,13 @@ export function filterJobs(jobs, { query, state, ats, hasSalary, hideRecruiters 
     );
   }
 
-  if (state) {
-    filtered = filtered.filter((j) => j.state === state);
+  if (role && ROLE_PATTERNS[role]) {
+    const re = ROLE_PATTERNS[role];
+    filtered = filtered.filter((j) => re.test(j.title));
   }
 
-  if (ats) {
-    filtered = filtered.filter((j) => j.ats_platform === ats);
+  if (state) {
+    filtered = filtered.filter((j) => j.state === state);
   }
 
   if (hasSalary) {

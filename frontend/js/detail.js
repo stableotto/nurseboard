@@ -91,8 +91,6 @@ function renderJobDetail(job, container) {
           <dl class="sidebar-info">
             <dt>Company</dt>
             <dd>${escapeHtml(job.company_name || job.company_slug)}</dd>
-            <dt>Platform</dt>
-            <dd>${escapeHtml(job.ats_platform || "")}</dd>
             <dt>Posted</dt>
             <dd>${posted}</dd>
             ${job.location ? `<dt>Location</dt><dd>${escapeHtml(job.location)}</dd>` : ""}
