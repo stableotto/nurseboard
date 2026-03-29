@@ -4,7 +4,10 @@ import logging
 import sys
 
 from pipeline.config import DB_PATH
-from pipeline.db import get_connection, get_exportable_jobs, get_stats, mark_removed, upsert_job
+from pipeline.db import (
+    get_connection, get_exportable_jobs, get_stats,
+    mark_removed, upsert_job, delete_unenriched,
+)
 from pipeline.download import download_upstream_jobs
 from pipeline.enrich import enrich_all
 from pipeline.export import export_for_frontend
@@ -30,7 +33,7 @@ def main():
         logger.warning("No nursing jobs found! Exiting.")
         sys.exit(1)
 
-    # 3. Upsert into SQLite
+    # 3. Upsert into SQLite — track which are new this run
     conn = get_connection(DB_PATH)
     new_count = 0
     current_urls = set()
@@ -39,15 +42,15 @@ def main():
         if upsert_job(conn, job):
             new_count += 1
     conn.commit()
-    logger.info("Upserted %d jobs (%d new)", len(nursing_jobs), new_count)
+    logger.info("Upserted %d jobs (%d new this run)", len(nursing_jobs), new_count)
 
     # 4. Mark removed jobs
     removed = mark_removed(conn, current_urls)
     conn.commit()
     logger.info("Marked %d jobs as removed", removed)
 
-    # 5. Enrich new/failed jobs
-    logger.info("Starting enrichment...")
+    # 5. Enrich only new/unenriched jobs
+    logger.info("Starting enrichment of %d new jobs...", new_count)
     results = enrich_all(DB_PATH)
     for r in results:
         logger.info(
@@ -56,7 +59,14 @@ def main():
             " (SKIPPED)" if r["skipped"] else "",
         )
 
-    # 6. Export for frontend
+    # 6. Clean up: delete jobs that failed enrichment (stale/gone from ATS)
+    cleaned = delete_unenriched(conn)
+    conn.commit()
+    if cleaned:
+        logger.info("Cleaned up %d unenrichable jobs", cleaned)
+
+    # 7. Export for frontend
+    conn = get_connection(DB_PATH)
     exportable = get_exportable_jobs(conn)
     stats = get_stats(conn)
     export_for_frontend(exportable, stats)
@@ -67,6 +77,7 @@ def main():
     logger.info("Total active jobs: %d", stats["total"])
     logger.info("Enriched: %d", stats["enriched"])
     logger.info("By platform: %s", stats["by_ats"])
+    logger.info("New today: %d", new_count)
     logger.info("Exported: %d", len(exportable))
 
     conn.close()
