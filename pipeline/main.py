@@ -12,6 +12,7 @@ from pipeline.download import download_upstream_jobs
 from pipeline.enrich import enrich_all
 from pipeline.export import export_for_frontend
 from pipeline.filter import filter_nursing_jobs
+from pipeline.scrape_workday import scrape_extra_workday
 
 logging.basicConfig(
     level=logging.INFO,
@@ -30,7 +31,16 @@ def main():
     # 2. Filter for nursing jobs
     nursing_jobs = filter_nursing_jobs(all_jobs)
     if not nursing_jobs:
-        logger.warning("No nursing jobs found! Exiting.")
+        logger.warning("No nursing jobs found from upstream!")
+
+    # 2b. Scrape extra Workday companies
+    extra_jobs = scrape_extra_workday()
+    if extra_jobs:
+        nursing_jobs.extend(extra_jobs)
+        logger.info("Total nursing jobs (upstream + extra): %d", len(nursing_jobs))
+
+    if not nursing_jobs:
+        logger.warning("No nursing jobs found at all! Exiting.")
         sys.exit(1)
 
     # 3. Upsert into SQLite — track which are new this run
