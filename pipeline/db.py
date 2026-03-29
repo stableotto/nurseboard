@@ -198,7 +198,7 @@ def get_exportable_jobs(conn: sqlite3.Connection) -> list[dict]:
           AND enriched_at IS NOT NULL
           AND description_html IS NOT NULL
           AND COALESCE(posted_date, first_seen_at) >= ?
-        ORDER BY COALESCE(posted_date, first_seen_at) DESC""",
+        ORDER BY posted_date IS NULL ASC, COALESCE(posted_date, first_seen_at) DESC""",
         (cutoff_posted,),
     ).fetchall()
     return [dict(r) for r in rows]

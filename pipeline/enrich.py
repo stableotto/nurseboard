@@ -16,17 +16,16 @@ from pipeline.enrichers.greenhouse import enrich_greenhouse
 from pipeline.enrichers.lever import enrich_lever
 from pipeline.enrichers.ashby import enrich_ashby
 from pipeline.enrichers.workday import enrich_workday
-from pipeline.enrichers.workable import enrich_workable
 from pipeline.enrichers.bamboohr import enrich_bamboohr
 
 logger = logging.getLogger(__name__)
 
+# Workable is not in the upstream data source
 ENRICHERS = {
     "greenhouse": enrich_greenhouse,
     "lever": enrich_lever,
     "ashby": enrich_ashby,
     "workday": enrich_workday,
-    "workable": enrich_workable,
     "bamboohr": enrich_bamboohr,
 }
 
@@ -46,7 +45,7 @@ class RateLimiter:
         self.last_call = time.monotonic()
 
 
-def enrich_ats(db_path: str, ats: str, enrich_fn, limit: int = 500) -> dict:
+def enrich_ats(db_path: str, ats: str, enrich_fn, limit: int = 2000) -> dict:
     """Enrich jobs for a single ATS platform. Creates its own DB connection."""
     conn = get_connection(db_path)
     try:
