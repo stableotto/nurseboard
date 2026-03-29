@@ -2,7 +2,8 @@ data/nursing_jobs.db
 __pycache__/
 *.pyc
 .env
-frontend/data/jobs.json
-frontend/data/meta.json
-frontend/data/jobs/
+frontend/data/
+frontend/jobs/
+frontend/sitemap.xml
+frontend/robots.txt
 .gstack/

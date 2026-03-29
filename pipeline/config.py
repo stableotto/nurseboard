@@ -79,32 +79,65 @@ UNENRICHED_GRACE_DAYS = 14
 # Pagination
 JOBS_PER_PAGE = 25
 
+# Minimum jobs required to generate a pSEO page (avoids thin content)
+MIN_JOBS_FOR_PAGE = 3
+
 # SEO category pages: (slug, display_name, title_regex, meta_description)
 SEO_CATEGORIES = [
+    # Core roles
     ("rn", "Registered Nurse", r"\bRN\b|\bregistered\s+nurse\b", "Find registered nurse (RN) jobs. Browse {count} open RN positions updated daily."),
     ("lpn", "Licensed Practical Nurse", r"\bLPN\b|\blicensed\s+practical\s+nurse\b", "Browse {count} LPN jobs. Licensed practical nurse positions updated daily."),
     ("lvn", "Licensed Vocational Nurse", r"\bLVN\b|\blicensed\s+vocational\s+nurse\b", "Browse {count} LVN jobs. Licensed vocational nurse positions updated daily."),
-    ("cna", "Certified Nursing Assistant", r"\bCNA\b|\bcertified\s+nurs(?:e|ing)\s+assistant\b", "Browse {count} CNA jobs. Certified nursing assistant positions updated daily."),
-    ("nurse-practitioner", "Nurse Practitioner", r"\bNP\b|\bnurse\s+practitioner\b|\bAPRN\b", "Browse {count} nurse practitioner (NP/APRN) jobs updated daily."),
-    ("travel-nurse", "Travel Nurse", r"\btravel\s+nurs(?:e|ing)\b", "Browse {count} travel nurse jobs. Travel nursing positions across all states."),
-    ("icu-nurse", "ICU Nurse", r"\bICU\s+nurs(?:e|ing)\b|\bintensive\s+care\b", "Browse {count} ICU nurse jobs. Intensive care nursing positions updated daily."),
-    ("nicu-nurse", "NICU Nurse", r"\bNICU\b", "Browse {count} NICU nurse jobs. Neonatal ICU nursing positions updated daily."),
+    ("cna", "Certified Nursing Assistant", r"\bCNA\b|\bcertified\s+nurs(?:e|ing)\s+assistant\b|\bnurse\s+aide\b", "Browse {count} CNA jobs. Certified nursing assistant positions updated daily."),
+    ("nurse-practitioner", "Nurse Practitioner", r"\bNP\b|\bnurse\s+practitioner\b|\bAPRN\b|\badvanced\s+practice\b", "Browse {count} nurse practitioner (NP/APRN) jobs updated daily."),
+    ("case-manager", "Case Manager", r"\bcase\s+manag(?:er|ement)\b", "Browse {count} nurse case manager jobs updated daily."),
+    # Specialty
+    ("icu-nurse", "ICU Nurse", r"\bICU\b|\bintensive\s+care\b|\bcritical\s+care\b", "Browse {count} ICU nurse jobs. Intensive care nursing positions updated daily."),
+    ("er-nurse", "ER Nurse", r"\bER\s+nurs|\bemergency\b.*nurs|\bnurs.*\bemergency\b|\bemergency\s+(?:room|department)\b", "Browse {count} ER nurse jobs. Emergency room nursing positions updated daily."),
+    ("or-nurse", "OR Nurse", r"\bOR\s+nurs|\bsurg(?:ical|ery)\b.*nurs|\bnurs.*\bsurg(?:ical|ery)\b|\boperating\s+room\b", "Browse {count} OR and surgical nurse jobs updated daily."),
+    ("nicu-nurse", "NICU Nurse", r"\bNICU\b|\bneonatal\b", "Browse {count} NICU nurse jobs. Neonatal ICU nursing positions updated daily."),
     ("pacu-nurse", "PACU Nurse", r"\bPACU\b", "Browse {count} PACU nurse jobs. Post-anesthesia care nursing positions."),
-    ("med-surg", "Med-Surg Nurse", r"\bmed[\s\-]?surg\b", "Browse {count} med-surg nurse jobs. Medical-surgical nursing positions updated daily."),
-    ("charge-nurse", "Charge Nurse", r"\bcharge\s+nurse\b", "Browse {count} charge nurse jobs updated daily."),
-    ("clinical-nurse", "Clinical Nurse", r"\bclinical\s+nurse\b", "Browse {count} clinical nurse jobs. Clinical nursing positions updated daily."),
-    ("nurse-manager", "Nurse Manager", r"\bnurse\s+manager\b|\bnursing\s+manager\b|\bmanager.*nurs\b", "Browse {count} nurse manager jobs. Nursing management positions updated daily."),
-    ("nurse-educator", "Nurse Educator", r"\bnurse\s+educator\b|\bnursing\s+educat\b", "Browse {count} nurse educator jobs. Nursing education positions updated daily."),
-    ("home-health-nurse", "Home Health Nurse", r"\bhome\s+health\b.*nurs|\bnurs.*\bhome\s+health\b", "Browse {count} home health nurse jobs. Home care nursing positions updated daily."),
-    ("crna", "Nurse Anesthetist", r"\bCRNA\b|\bnurse\s+anesthetist\b", "Browse {count} CRNA jobs. Certified registered nurse anesthetist positions."),
-    ("oncology-nurse", "Oncology Nurse", r"\boncology\b.*nurs|\bnurs.*\boncology\b", "Browse {count} oncology nurse jobs. Cancer care nursing positions updated daily."),
-    ("er-nurse", "ER Nurse", r"\bER\s+nurs|\bemergency\b.*nurs|\bnurs.*\bemergency\b", "Browse {count} ER nurse jobs. Emergency room nursing positions updated daily."),
+    ("med-surg", "Med-Surg Nurse", r"\bmed[\s\-]?surg\b|\bmedical[\s\-]?surgical\b", "Browse {count} med-surg nurse jobs. Medical-surgical nursing positions updated daily."),
+    ("oncology-nurse", "Oncology Nurse", r"\boncology\b.*nurs|\bnurs.*\boncology\b|\bcancer\b.*nurs", "Browse {count} oncology nurse jobs. Cancer care nursing positions updated daily."),
     ("pediatric-nurse", "Pediatric Nurse", r"\bpediatric\b.*nurs|\bnurs.*\bpediatric\b|\bPICU\b", "Browse {count} pediatric nurse jobs updated daily."),
-    ("psychiatric-nurse", "Psychiatric Nurse", r"\bpsych\b.*nurs|\bnurs.*\bpsych\b|\bmental\s+health\b.*nurs", "Browse {count} psychiatric nurse jobs. Mental health nursing positions."),
+    ("psychiatric-nurse", "Psychiatric Nurse", r"\bpsych\b.*nurs|\bnurs.*\bpsych\b|\bmental\s+health\b|\bbehavioral\s+health\b", "Browse {count} psychiatric nurse jobs. Mental health nursing positions."),
+    ("labor-delivery", "Labor & Delivery Nurse", r"\blabor\b.*\bdelivery\b|\bL&D\b|\bOB\b.*nurs|\bobstetric\b", "Browse {count} labor and delivery nurse jobs updated daily."),
+    # Settings
+    ("home-health", "Home Health Nurse", r"\bhome\s+health\b|\bhome\s+care\b|\bhospice\b", "Browse {count} home health nurse jobs. Home care nursing positions updated daily."),
+    ("travel-nurse", "Travel Nurse", r"\btravel\s+nurs(?:e|ing)\b", "Browse {count} travel nurse jobs. Travel nursing positions across all states."),
+    ("remote-nurse", "Remote Nursing", r"\bremote\b|\btelehealth\b|\btelemedicine\b|\bvirtual\s+(?:care|nurse|nursing)\b", "Browse {count} remote nursing jobs. Telehealth and work-from-home nursing positions."),
+    # Leadership
+    ("charge-nurse", "Charge Nurse", r"\bcharge\s+nurse\b", "Browse {count} charge nurse jobs updated daily."),
+    ("nurse-manager", "Nurse Manager", r"\bnurse\s+manager\b|\bnursing\s+manager\b|\bdirector.*nurs|\bnurs.*director\b", "Browse {count} nurse manager jobs. Nursing management positions updated daily."),
+    ("clinical-nurse", "Clinical Nurse", r"\bclinical\s+nurse\b", "Browse {count} clinical nurse jobs. Clinical nursing positions updated daily."),
+    # Advanced practice
+    ("crna", "Nurse Anesthetist", r"\bCRNA\b|\bnurse\s+anesthetist\b|\banesthesia\b.*nurs", "Browse {count} CRNA jobs. Certified registered nurse anesthetist positions."),
     ("midwife", "Midwife", r"\bmidwi(?:fe|very|ves)\b", "Browse {count} midwife jobs. Certified nurse-midwife positions updated daily."),
+    ("nurse-educator", "Nurse Educator", r"\bnurse\s+educator\b|\bnursing\s+(?:instructor|faculty|professor|educat)\b|\bclinical\s+educator\b", "Browse {count} nurse educator jobs. Nursing education positions updated daily."),
+    # Shift / employment type
+    ("night-shift", "Night Shift Nurse", r"\bnight\s*shift\b|\bnoc(?:turnal)?\s+shift\b|\bovernight\b|\b3rd\s+shift\b|\bthird\s+shift\b", "Browse {count} night shift nursing jobs updated daily."),
+    ("per-diem", "Per Diem Nurse", r"\bper\s*[\-\s]?diem\b|\bPRN\b", "Browse {count} per diem and PRN nursing jobs updated daily."),
+    ("part-time-nurse", "Part-Time Nurse", r"\bpart[\s\-]?time\b", "Browse {count} part-time nursing jobs updated daily."),
+    # Pay
     ("nursing-with-salary", "Nursing Jobs with Salary", None, "Browse {count} nursing jobs with published salary ranges. Know your pay upfront."),
-    ("remote-nurse", "Remote Nursing", r"\bremote\b|\btelehealth\b|\btelemedicine\b", "Browse {count} remote nursing jobs. Telehealth and work-from-home nursing positions."),
 ]
+
+# State abbreviation to URL slug (lowercase full name)
+STATE_SLUGS = {abbr: name.lower().replace(" ", "-") for abbr, name in {
+    "AL": "Alabama", "AK": "Alaska", "AZ": "Arizona", "AR": "Arkansas",
+    "CA": "California", "CO": "Colorado", "CT": "Connecticut", "DE": "Delaware",
+    "FL": "Florida", "GA": "Georgia", "HI": "Hawaii", "ID": "Idaho",
+    "IL": "Illinois", "IN": "Indiana", "IA": "Iowa", "KS": "Kansas",
+    "KY": "Kentucky", "LA": "Louisiana", "ME": "Maine", "MD": "Maryland",
+    "MA": "Massachusetts", "MI": "Michigan", "MN": "Minnesota", "MS": "Mississippi",
+    "MO": "Missouri", "MT": "Montana", "NE": "Nebraska", "NV": "Nevada",
+    "NH": "New Hampshire", "NJ": "New Jersey", "NM": "New Mexico", "NY": "New York",
+    "NC": "North Carolina", "ND": "North Dakota", "OH": "Ohio", "OK": "Oklahoma",
+    "OR": "Oregon", "PA": "Pennsylvania", "RI": "Rhode Island", "SC": "South Carolina",
+    "SD": "South Dakota", "TN": "Tennessee", "TX": "Texas", "UT": "Utah",
+    "VT": "Vermont", "VA": "Virginia", "WA": "Washington", "WV": "West Virginia",
+    "WI": "Wisconsin", "WY": "Wyoming", "DC": "District of Columbia",
+}.items()}
 
 # State full names for SEO pages
 STATE_NAMES = {

@@ -28,7 +28,8 @@ export function renderJobList(jobs, page, container) {
         salary ? `<span class="salary">${salary}</span>` : null,
       ].filter(Boolean);
 
-      return `<a class="job-row" href="job.html?id=${job.id}">
+      const href = job.slug ? `/jobs/${job.slug}/` : `job.html?id=${job.id}`;
+      return `<a class="job-row" href="${href}">
         <div class="company-avatar" style="background:${color}">${initial}</div>
         <div class="job-info">
           <div class="job-title">${escapeHtml(job.title)}</div>
