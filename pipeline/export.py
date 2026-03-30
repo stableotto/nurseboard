@@ -281,6 +281,7 @@ def _job_detail_html(job: dict, desc_html: str, css_path: str) -> str:
       <div class="detail-sidebar">
         <div class="sidebar-card">
           <a class="apply-btn" href="{escape(job["url"])}" target="_blank" rel="noopener">Apply for this job</a>
+          {f'<div class="sidebar-salary">{salary}</div>' if salary else ""}
           <dl class="sidebar-info">
             <dt>Company</dt>
             <dd>{escape(job["company_name"])}</dd>
