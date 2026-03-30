@@ -181,6 +181,13 @@ def _page_shell(title: str, meta_desc: str, canonical: str, css_path: str,
   <title>{escape(title)}</title>
   <meta name="description" content="{escape(meta_desc)}">
   <link rel="canonical" href="{canonical}">
+  <meta property="og:title" content="{escape(title)}">
+  <meta property="og:description" content="{escape(meta_desc)}">
+  <meta property="og:url" content="{canonical}">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="NurseBoard">
+  <meta name="twitter:card" content="summary">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>+</text></svg>">
   <link rel="stylesheet" href="{css_path}">
 </head>
 <body>
@@ -225,14 +232,24 @@ def _job_detail_html(job: dict, desc_html: str, css_path: str) -> str:
         meta_desc += f". {salary}"
     meta_desc += ". Apply now on NurseBoard."
 
+    job_title_full = f'{escape(job["title"])} at {escape(job["company_name"])}'
+    job_canonical = f'{SITE_URL}/jobs/{job["slug"]}/'
+
     return f'''<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{escape(job["title"])} at {escape(job["company_name"])} | NurseBoard</title>
+  <title>{job_title_full} | NurseBoard</title>
   <meta name="description" content="{escape(meta_desc)}">
-  <link rel="canonical" href="{SITE_URL}/jobs/{job["slug"]}/">
+  <link rel="canonical" href="{job_canonical}">
+  <meta property="og:title" content="{job_title_full} | NurseBoard">
+  <meta property="og:description" content="{escape(meta_desc)}">
+  <meta property="og:url" content="{job_canonical}">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="NurseBoard">
+  <meta name="twitter:card" content="summary">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>+</text></svg>">
   <link rel="stylesheet" href="{css_path}">
 </head>
 <body>
@@ -337,6 +354,28 @@ def _category_page_html(heading: str, description: str, meta_desc: str,
 # Main export
 # ---------------------------------------------------------------------------
 
+def _build_related_links_html(label: str, links: list[tuple[str, str, int]]) -> str:
+    """Build a related links section. links = [(url, display_name, count), ...]"""
+    if not links:
+        return ""
+    items = "".join(
+        f'<a class="hub-link" href="{url}">{escape(name)} <span class="count">{count}</span></a>'
+        for url, name, count in links
+    )
+    return f'<div class="related-section"><h3>{escape(label)}</h3><div class="hub-links">{items}</div></div>'
+
+
+def _build_hub_section_html(label: str, links: list[tuple[str, str, int]]) -> str:
+    """Build a hub link section for homepage."""
+    if not links:
+        return ""
+    items = "".join(
+        f'<a class="hub-link" href="{url}">{escape(name)} <span class="count">{count}</span></a>'
+        for url, name, count in links
+    )
+    return f'<section class="hub-section"><h2>{escape(label)}</h2><div class="hub-links">{items}</div></section>'
+
+
 def export_for_frontend(jobs: list[dict], stats: dict):
     """Export jobs to frontend data files + generate pre-rendered SEO pages."""
     os.makedirs(EXPORT_DIR, exist_ok=True)
@@ -369,8 +408,11 @@ def export_for_frontend(jobs: list[dict], stats: dict):
     # Generate job detail pages at clean URLs
     _generate_job_detail_pages(detail_jobs)
 
-    # Generate category pages (role, state, role×state)
+    # Generate category pages (role, state, role×state, company)
     _generate_all_category_pages(list_jobs)
+
+    # Generate homepage
+    _generate_homepage(list_jobs)
 
     # Generate sitemap
     _generate_sitemap(list_jobs)
@@ -445,6 +487,26 @@ def _generate_all_category_pages(list_jobs: list[dict]):
         if slug == "nursing-with-salary":
             cat_filter["hasSalary"] = True
 
+        # Build state sub-links for this role
+        role_state_links = []
+        for abbr, sjobs in by_state.items():
+            cnt = sum(1 for j in sjobs if matcher(j))
+            if cnt >= MIN_JOBS_FOR_PAGE:
+                state_name = STATE_NAMES.get(abbr, abbr)
+                state_sl = STATE_SLUGS.get(abbr, abbr.lower())
+                role_state_links.append((f"/jobs/{slug}/{state_sl}/", f"{display} in {state_name}", cnt))
+        role_state_links.sort(key=lambda x: -x[2])
+
+        # Related roles
+        related_roles = [
+            (f"/jobs/{s}/", d, sum(1 for j in list_jobs if m(j)))
+            for s, d, _, _, m in cat_matchers
+            if s != slug and sum(1 for j in list_jobs if m(j)) >= MIN_JOBS_FOR_PAGE
+        ][:10]
+
+        seo_extra = _build_related_links_html(f"{display} Jobs by State", role_state_links[:15])
+        seo_extra += _build_related_links_html("Related Roles", related_roles)
+
         page_dir = os.path.join(FRONTEND_DIR, "jobs", slug)
         os.makedirs(page_dir, exist_ok=True)
         html = _category_page_html(
@@ -457,6 +519,7 @@ def _generate_all_category_pages(list_jobs: list[dict]):
             data_path="../../data",
             jobs=matched,
             category_filter_json=json.dumps(cat_filter),
+            extra_seo=seo_extra,
         )
         with open(os.path.join(page_dir, "index.html"), "w") as f:
             f.write(html)
@@ -509,6 +572,18 @@ def _generate_all_category_pages(list_jobs: list[dict]):
         heading = f"Nursing Jobs in {state_name}"
         meta_desc = f"Browse {len(state_jobs)} nursing jobs in {state_name}. Updated daily with salary data and direct application links."
 
+        # Role links within this state
+        state_role_links = []
+        for s, d, rx, _, m in cat_matchers:
+            if rx:
+                cnt = sum(1 for j in state_jobs if m(j))
+                if cnt >= MIN_JOBS_FOR_PAGE:
+                    state_role_links.append((f"/jobs/{s}/{state_slug}/", d, cnt))
+        state_role_links.sort(key=lambda x: -x[2])
+
+        state_seo = f"<p>We track nursing positions in {state_name} from {companies} healthcare employers. Roles include RN, LPN, CNA, nurse practitioner, and more.</p>"
+        state_seo += _build_related_links_html(f"Roles in {state_name}", state_role_links[:12])
+
         html = _category_page_html(
             heading=heading,
             description=meta_desc,
@@ -519,13 +594,175 @@ def _generate_all_category_pages(list_jobs: list[dict]):
             data_path="../../data",
             jobs=state_jobs,
             category_filter_json=json.dumps({"state": abbr}),
-            extra_seo=f"<p>We track nursing positions in {state_name} from {companies} healthcare employers. Roles include RN, LPN, CNA, nurse practitioner, and more.</p>",
+            extra_seo=state_seo,
         )
         with open(os.path.join(page_dir, "index.html"), "w") as f:
             f.write(html)
         total += 1
 
-    logger.info("Generated %d pSEO category pages", total)
+    # 4. Company pages: /jobs/at/{company}/
+    by_company: dict[str, list] = {}
+    for j in list_jobs:
+        slug_parts = j["slug"].split("/")  # at/company/title-hash
+        if len(slug_parts) >= 2:
+            company_slug = slug_parts[1]
+            by_company.setdefault(company_slug, []).append(j)
+
+    for company_slug, company_jobs in by_company.items():
+        if len(company_jobs) < MIN_JOBS_FOR_PAGE:
+            continue
+
+        company_name = company_jobs[0]["company_name"]
+        states_with_jobs = sorted(set(j.get("state") for j in company_jobs if j.get("state")))
+
+        # Related: other top companies
+        related_companies = sorted(
+            [(cs, cj) for cs, cj in by_company.items() if cs != company_slug and len(cj) >= MIN_JOBS_FOR_PAGE],
+            key=lambda x: -len(x[1]),
+        )[:12]
+        related_html = _build_related_links_html(
+            "More Healthcare Employers",
+            [(f"/jobs/at/{cs}/", cj[0]["company_name"], len(cj)) for cs, cj in related_companies],
+        )
+
+        page_dir = os.path.join(FRONTEND_DIR, "jobs", "at", company_slug)
+        os.makedirs(page_dir, exist_ok=True)
+
+        heading = f"{company_name} Nursing Jobs"
+        meta_desc = f"Browse {len(company_jobs)} nursing jobs at {company_name}. Updated daily with salary data and direct application links."
+
+        seo_block = f"""<section class="seo-content">
+      <h2>About {escape(heading)}</h2>
+      <p>NurseBoard tracks <strong>{len(company_jobs)}</strong> nursing positions at {escape(company_name)}, updated daily with salary data, full descriptions, and direct application links.</p>
+    </section>
+    {related_html}"""
+
+        html = _category_page_html(
+            heading=heading,
+            description=meta_desc,
+            meta_desc=meta_desc,
+            canonical=f"{SITE_URL}/jobs/at/{company_slug}/",
+            css_path="../../../css/style.css",
+            js_path="../../../js",
+            data_path="../../../data",
+            jobs=company_jobs,
+            category_filter_json=json.dumps({"company": company_slug}),
+            extra_seo=seo_block,
+        )
+        with open(os.path.join(page_dir, "index.html"), "w") as f:
+            f.write(html)
+        total += 1
+
+    logger.info("Generated %d pSEO pages (categories + companies)", total)
+
+
+def _generate_homepage(list_jobs: list[dict]):
+    """Generate the homepage with hub links to categories, states, and companies."""
+    # Build role links
+    role_links = []
+    for slug, display, regex, _ in SEO_CATEGORIES:
+        if regex:
+            pat = re.compile(regex, re.IGNORECASE)
+            count = sum(1 for j in list_jobs if pat.search(j["title"]))
+        elif slug == "nursing-with-salary":
+            count = sum(1 for j in list_jobs if j.get("salary_min"))
+        else:
+            count = len(list_jobs)
+        if count >= MIN_JOBS_FOR_PAGE:
+            role_links.append((f"/jobs/{slug}/", display, count))
+
+    # Build state links
+    by_state: dict[str, int] = {}
+    for j in list_jobs:
+        st = j.get("state")
+        if st:
+            by_state[st] = by_state.get(st, 0) + 1
+    state_links = sorted(
+        [(f"/jobs/{STATE_SLUGS[abbr]}/", STATE_NAMES[abbr], cnt) for abbr, cnt in by_state.items() if cnt >= MIN_JOBS_FOR_PAGE],
+        key=lambda x: -x[2],
+    )
+
+    # Build company links (top 20)
+    by_company: dict[str, tuple[str, int]] = {}
+    for j in list_jobs:
+        slug_parts = j["slug"].split("/")
+        if len(slug_parts) >= 2:
+            cs = slug_parts[1]
+            if cs not in by_company:
+                by_company[cs] = (j["company_name"], 0)
+            by_company[cs] = (by_company[cs][0], by_company[cs][1] + 1)
+    company_links = sorted(
+        [(f"/jobs/at/{cs}/", name, cnt) for cs, (name, cnt) in by_company.items() if cnt >= MIN_JOBS_FOR_PAGE],
+        key=lambda x: -x[2],
+    )[:24]
+
+    pre_rendered = _render_job_rows_html(list_jobs)
+    hub_roles = _build_hub_section_html("Browse by Role", role_links)
+    hub_states = _build_hub_section_html("Browse by State", state_links[:20])
+    hub_companies = _build_hub_section_html("Top Employers", company_links)
+
+    homepage = _page_shell(
+        title="NurseBoard - Nursing Jobs Aggregated Daily from 500+ Employers",
+        meta_desc=f"Browse {len(list_jobs)} nursing jobs aggregated daily from top healthcare employers. RN, LPN, CNA, NP, travel nurse, and more. Salary data and direct application links.",
+        canonical=f"{SITE_URL}/",
+        css_path="css/style.css",
+        js_path="js",
+        data_path="data",
+        body=f'''    <section class="search-section">
+      <input type="text" id="search" class="search-input" placeholder="Search by title, company, or location...">
+    </section>
+
+    <div class="filter-row">
+      <select id="filter-role" class="filter-select">
+        <option value="">All Roles</option>
+        <option value="rn">RN - Registered Nurse</option>
+        <option value="lpn-lvn">LPN / LVN</option>
+        <option value="cna">CNA</option>
+        <option value="np">Nurse Practitioner / APRN</option>
+        <option value="case-manager">Case Manager</option>
+        <option value="travel-nurse">Travel Nurse</option>
+        <option value="charge-nurse">Charge Nurse</option>
+        <option value="nurse-manager">Nurse Manager</option>
+        <option value="icu">ICU / Critical Care</option>
+        <option value="er">ER / Emergency</option>
+        <option value="or-nurse">OR / Surgical Nurse</option>
+        <option value="home-health">Home Health</option>
+        <option value="med-surg">Med-Surg</option>
+        <option value="pediatric">Pediatric / NICU / PICU</option>
+        <option value="psych">Psychiatric / Behavioral</option>
+        <option value="oncology">Oncology</option>
+        <option value="crna">CRNA</option>
+        <option value="midwife">Midwife</option>
+        <option value="educator">Nurse Educator</option>
+        <option value="telehealth">Telehealth / Remote</option>
+      </select>
+      <select id="filter-state" class="filter-select">
+        <option value="">All States</option>
+      </select>
+      <label class="filter-toggle">
+        <input type="checkbox" id="filter-salary"> Has Salary
+      </label>
+      <label class="filter-toggle">
+        <input type="checkbox" id="filter-recruiter"> Hide Recruiters
+      </label>
+    </div>
+
+    <div id="result-count" class="result-count">{len(list_jobs)} nursing jobs</div>
+
+    <div id="job-list" class="job-list">
+{pre_rendered}
+    </div>
+    <div id="pagination" class="pagination"></div>
+
+    {hub_roles}
+    {hub_states}
+    {hub_companies}''',
+    )
+
+    with open(os.path.join(FRONTEND_DIR, "index.html"), "w") as f:
+        f.write(homepage)
+
+    logger.info("Generated homepage with hub links")
 
 
 def _generate_sitemap(list_jobs: list[dict]):
