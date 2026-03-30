@@ -700,8 +700,6 @@ def _generate_homepage(list_jobs: list[dict]):
     hub_roles = _build_hub_section_html("Browse by Role", role_links)
     hub_states = _build_hub_section_html("Browse by State", state_links[:20])
     hub_companies = _build_hub_section_html("Top Employers", company_links)
-    num_companies = len(set(j["company_name"] for j in list_jobs))
-
     homepage = _page_shell(
         title="NurseBoard - Nursing Jobs Aggregated Daily from 500+ Employers",
         meta_desc=f"Browse {len(list_jobs)} nursing jobs aggregated daily from top healthcare employers. RN, LPN, CNA, NP, travel nurse, and more. Salary data and direct application links.",
@@ -710,7 +708,7 @@ def _generate_homepage(list_jobs: list[dict]):
         js_path="js",
         data_path="data",
         body=f'''    <section class="hero">
-      <p class="hero-eyebrow">Updated daily from {num_companies}+ companies.</p>
+      <p class="hero-eyebrow">Updated daily from 600+ companies.</p>
       <div class="hero-content">
         <h1>Nursing jobs.<br>Direct from the employer.</h1>
         <p class="hero-blurb">Every job here links straight to the employer's career page. No recruiters, no staffing agencies, no middlemen. We scan thousands of company career pages daily so you can skip the noise and apply directly.</p>
