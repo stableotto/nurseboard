@@ -205,6 +205,79 @@ def _page_shell(title: str, meta_desc: str, canonical: str, css_path: str,
 </html>'''
 
 
+def _build_job_jsonld(job: dict, desc_html: str, salary_display: str) -> str:
+    """Build JSON-LD JobPosting structured data for Google rich results."""
+    plain = re.sub(r"<[^>]+>", " ", desc_html or "")
+    plain = re.sub(r"\s+", " ", plain).strip()[:5000]
+
+    posted = job.get("posted_date") or job.get("first_seen_at") or ""
+    # Normalize to YYYY-MM-DD
+    date_posted = posted[:10] if posted else datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+    ld = {
+        "@context": "https://schema.org/",
+        "@type": "JobPosting",
+        "title": job["title"],
+        "description": plain,
+        "datePosted": date_posted,
+        "hiringOrganization": {
+            "@type": "Organization",
+            "name": job["company_name"],
+        },
+        "jobLocationType": None,
+        "applicantLocationRequirements": None,
+        "directApply": True,
+    }
+
+    # Location
+    location = job.get("location") or ""
+    if any(kw in location.lower() for kw in ["remote", "virtual", "telehealth", "work from home"]):
+        ld["jobLocationType"] = "TELECOMMUTE"
+    elif location:
+        loc_obj = {"@type": "Place", "address": {"@type": "PostalAddress"}}
+        state = job.get("state")
+        if state:
+            loc_obj["address"]["addressRegion"] = state
+            loc_obj["address"]["addressCountry"] = "US"
+        loc_obj["address"]["streetAddress"] = location
+        ld["jobLocation"] = loc_obj
+
+    # Clean up None values
+    ld = {k: v for k, v in ld.items() if v is not None}
+
+    # Salary
+    salary_min = job.get("salary_min")
+    salary_max = job.get("salary_max")
+    if salary_min or salary_max:
+        currency = job.get("salary_currency", "USD")
+        base_salary = {
+            "@type": "MonetaryAmount",
+            "currency": currency,
+            "value": {
+                "@type": "QuantitativeValue",
+                "unitText": "YEAR",
+            },
+        }
+        if salary_min and salary_max:
+            base_salary["value"]["minValue"] = salary_min / 100
+            base_salary["value"]["maxValue"] = salary_max / 100
+        elif salary_min:
+            base_salary["value"]["value"] = salary_min / 100
+        else:
+            base_salary["value"]["value"] = salary_max / 100
+        ld["baseSalary"] = base_salary
+
+    # Valid through (30 days from posted)
+    try:
+        from datetime import timedelta as td
+        dt = datetime.fromisoformat(date_posted)
+        ld["validThrough"] = (dt + td(days=30)).strftime("%Y-%m-%d")
+    except Exception:
+        pass
+
+    return f'<script type="application/ld+json">{json.dumps(ld, separators=(",", ":"))}</script>'
+
+
 def _job_detail_html(job: dict, desc_html: str, css_path: str) -> str:
     initial = (job["company_name"] or "?")[0].upper()
     color = _company_color(job["company_name"])
@@ -221,6 +294,9 @@ def _job_detail_html(job: dict, desc_html: str, css_path: str) -> str:
         f'<span class="dept-tag">{escape(d)}</span>'
         for d in (job.get("departments") or [])
     )
+
+    # Build JSON-LD JobPosting schema
+    jsonld = _build_job_jsonld(job, desc_html, salary)
 
     # Meta description from plain text
     plain = re.sub(r"<[^>]+>", " ", desc_html or "")
@@ -251,6 +327,7 @@ def _job_detail_html(job: dict, desc_html: str, css_path: str) -> str:
   <meta name="twitter:card" content="summary">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>+</text></svg>">
   <link rel="stylesheet" href="{css_path}">
+  {jsonld}
 </head>
 <body>
   <header class="header">
