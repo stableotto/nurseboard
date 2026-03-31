@@ -21,7 +21,7 @@ from pipeline.filter import is_nursing_job
 logger = logging.getLogger(__name__)
 
 EXTRA_COMPANIES_FILE = os.path.join(os.path.dirname(__file__), "workday_extra.json")
-MAX_WORKERS = 10
+MAX_WORKERS = 15
 JOBS_PER_PAGE = 20
 MAX_PAGES = 50  # Safety limit: 50 * 20 = 1000 jobs per company
 
