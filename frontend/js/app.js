@@ -47,6 +47,10 @@ async function initListPage() {
     if (catFilter.state) {
       jobs = jobs.filter((j) => j.state === catFilter.state);
     }
+    if (catFilter.company) {
+      const cs = catFilter.company;
+      jobs = jobs.filter((j) => j.slug && j.slug.split("/")[1] === cs);
+    }
     if (catFilter.hasSalary) {
       jobs = jobs.filter((j) => j.salary_min != null);
     }
