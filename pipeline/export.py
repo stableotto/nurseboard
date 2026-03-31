@@ -19,7 +19,7 @@ from pipeline.config import (
 
 logger = logging.getLogger(__name__)
 
-SITE_URL = "https://nurseboard.pages.dev"
+SITE_URL = "https://scrubshifts.pages.dev"
 FRONTEND_DIR = "frontend"
 
 _US_STATES = set(STATE_NAMES.keys())
@@ -185,7 +185,7 @@ def _page_shell(title: str, meta_desc: str, canonical: str, css_path: str,
   <meta property="og:description" content="{escape(meta_desc)}">
   <meta property="og:url" content="{canonical}">
   <meta property="og:type" content="website">
-  <meta property="og:site_name" content="NurseBoard">
+  <meta property="og:site_name" content="ScrubShifts">
   <meta name="twitter:card" content="summary">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>+</text></svg>">
   <link rel="stylesheet" href="{css_path}">
@@ -193,7 +193,7 @@ def _page_shell(title: str, meta_desc: str, canonical: str, css_path: str,
 <body>
   <header class="header">
     <div class="container">
-      <a href="/" class="logo">NurseBoard</a>
+      <a href="/" class="logo">ScrubShifts</a>
       <span class="tagline">Nursing jobs, aggregated daily</span>
     </div>
   </header>
@@ -306,7 +306,7 @@ def _job_detail_html(job: dict, desc_html: str, css_path: str) -> str:
         meta_desc += f" in {job['location']}"
     if salary:
         meta_desc += f". {salary}"
-    meta_desc += ". Apply now on NurseBoard."
+    meta_desc += ". Apply now on ScrubShifts."
 
     job_title_full = f'{escape(job["title"])} at {escape(job["company_name"])}'
     job_canonical = f'{SITE_URL}/jobs/{job["slug"]}/'
@@ -316,14 +316,14 @@ def _job_detail_html(job: dict, desc_html: str, css_path: str) -> str:
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{job_title_full} | NurseBoard</title>
+  <title>{job_title_full} | ScrubShifts</title>
   <meta name="description" content="{escape(meta_desc)}">
   <link rel="canonical" href="{job_canonical}">
-  <meta property="og:title" content="{job_title_full} | NurseBoard">
+  <meta property="og:title" content="{job_title_full} | ScrubShifts">
   <meta property="og:description" content="{escape(meta_desc)}">
   <meta property="og:url" content="{job_canonical}">
   <meta property="og:type" content="website">
-  <meta property="og:site_name" content="NurseBoard">
+  <meta property="og:site_name" content="ScrubShifts">
   <meta name="twitter:card" content="summary">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>+</text></svg>">
   <link rel="stylesheet" href="{css_path}">
@@ -332,7 +332,7 @@ def _job_detail_html(job: dict, desc_html: str, css_path: str) -> str:
 <body>
   <header class="header">
     <div class="container">
-      <a href="/" class="logo">NurseBoard</a>
+      <a href="/" class="logo">ScrubShifts</a>
       <span class="tagline">Nursing jobs, aggregated daily</span>
     </div>
   </header>
@@ -383,7 +383,7 @@ def _category_page_html(heading: str, description: str, meta_desc: str,
     companies = len(set(j["company_name"] for j in jobs))
 
     return _page_shell(
-        title=f"{heading} | NurseBoard",
+        title=f"{heading} | ScrubShifts",
         meta_desc=meta_desc,
         canonical=canonical,
         css_path=css_path,
@@ -420,7 +420,7 @@ def _category_page_html(heading: str, description: str, meta_desc: str,
 
     <section class="seo-content">
       <h2>About {escape(heading)}</h2>
-      <p>NurseBoard aggregates <strong>{escape(heading.lower())}</strong> positions from {companies} healthcare employers. Jobs are updated daily with salary data, full descriptions, and direct application links.</p>
+      <p>ScrubShifts aggregates <strong>{escape(heading.lower())}</strong> positions from {companies} healthcare employers. Jobs are updated daily with salary data, full descriptions, and direct application links.</p>
       {extra_seo}
     </section>
 
@@ -711,7 +711,7 @@ def _generate_all_category_pages(list_jobs: list[dict]):
 
         seo_block = f"""<section class="seo-content">
       <h2>About {escape(heading)}</h2>
-      <p>NurseBoard tracks <strong>{len(company_jobs)}</strong> nursing positions at {escape(company_name)}, updated daily with salary data, full descriptions, and direct application links.</p>
+      <p>ScrubShifts tracks <strong>{len(company_jobs)}</strong> nursing positions at {escape(company_name)}, updated daily with salary data, full descriptions, and direct application links.</p>
     </section>
     {related_html}"""
 
@@ -779,7 +779,7 @@ def _generate_homepage(list_jobs: list[dict]):
     hub_states = _build_hub_section_html("Browse by State", state_links[:20])
     hub_companies = _build_hub_section_html("Top Employers", company_links)
     homepage = _page_shell(
-        title="NurseBoard - Nursing Jobs Aggregated Daily from 500+ Employers",
+        title="ScrubShifts - Nursing Jobs Aggregated Daily from 500+ Employers",
         meta_desc=f"Browse {len(list_jobs)} nursing jobs aggregated daily from top healthcare employers. RN, LPN, CNA, NP, travel nurse, and more. Salary data and direct application links.",
         canonical=f"{SITE_URL}/",
         css_path="css/style.css",
