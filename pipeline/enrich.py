@@ -45,7 +45,7 @@ class RateLimiter:
         self.last_call = time.monotonic()
 
 
-def enrich_ats(db_path: str, ats: str, enrich_fn, limit: int = 2000) -> dict:
+def enrich_ats(db_path: str, ats: str, enrich_fn, limit: int = 5000) -> dict:
     """Enrich jobs for a single ATS platform. Creates its own DB connection."""
     conn = get_connection(db_path)
     try:

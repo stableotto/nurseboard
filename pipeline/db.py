@@ -171,9 +171,10 @@ def mark_job_gone(conn: sqlite3.Connection, url: str):
 
 
 def delete_unenriched(conn: sqlite3.Connection) -> int:
-    """Delete jobs that were never successfully enriched (stale/gone from ATS)."""
+    """Delete jobs that failed enrichment (maxed out retries — 404/gone from ATS)."""
     conn.execute(
-        "DELETE FROM jobs WHERE enriched_at IS NULL OR description_html IS NULL"
+        "DELETE FROM jobs WHERE enriched_at IS NULL AND enrich_failures >= ?",
+        (MAX_ENRICH_FAILURES,),
     )
     deleted = conn.execute("SELECT changes()").fetchone()[0]
     return deleted
