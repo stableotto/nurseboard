@@ -25,6 +25,15 @@ FRONTEND_DIR = "frontend"
 _US_STATES = set(STATE_NAMES.keys())
 _STATE_RE = re.compile(r"\b([A-Z]{2})\b")
 _SLUG_RE = re.compile(r"[^a-z0-9]+")
+_COORD_RE = re.compile(r"-?\d+\.\d{4,}")
+_ZIP_RE = re.compile(r"\b\d{5}(?:-\d{4})?\b")
+_FULL_STATE_NAMES = {v: k for k, v in STATE_NAMES.items()}
+
+# Salary regex for extracting from description text
+_DESC_SALARY_RE = re.compile(
+    r"\$\s*([\d,]+(?:\.\d{2})?)\s*(?:[-\u2013/]|to)\s*\$\s*([\d,]+(?:\.\d{2})?)"
+)
+_HOURLY_RE = re.compile(r"/\s*(?:hr|hour)", re.IGNORECASE)
 
 
 # ---------------------------------------------------------------------------
@@ -38,6 +47,79 @@ def _extract_state(location: str | None) -> str | None:
         if m.group(1) in _US_STATES:
             return m.group(1)
     return None
+
+
+def _normalize_location(location: str | None) -> str | None:
+    """Normalize location to 'City, ST' format. Remove coordinates, zip codes, addresses."""
+    if not location:
+        return None
+
+    loc = location.strip()
+
+    # Remove coordinates
+    loc = _COORD_RE.sub("", loc)
+
+    # Remove pipe-delimited suffixes (e.g., "Linnaeus Wear Referrals|170102")
+    if "|" in loc:
+        loc = loc.split("|")[0].strip()
+
+    # Try to extract "City, ST" pattern
+    # Match "City, STATE_ABBR" possibly with zip/extra
+    m = re.search(r"([A-Za-z][A-Za-z .'-]+),\s*([A-Z]{2})\b", loc)
+    if m:
+        city = m.group(1).strip().rstrip(",")
+        state = m.group(2)
+        if state in _US_STATES:
+            return f"{city}, {state}"
+
+    # Match "City, Full State Name"
+    for full_name, abbr in _FULL_STATE_NAMES.items():
+        pattern = re.compile(rf"([A-Za-z][A-Za-z .'-]+),\s*{re.escape(full_name)}", re.IGNORECASE)
+        m = pattern.search(loc)
+        if m:
+            city = m.group(1).strip().rstrip(",")
+            return f"{city}, {abbr}"
+
+    # Match "Full State Name" alone (e.g., "California, United States")
+    for full_name, abbr in _FULL_STATE_NAMES.items():
+        if full_name.lower() in loc.lower():
+            # Try to get city before state name
+            m = re.search(rf"([A-Za-z][A-Za-z .'-]+),\s*{re.escape(full_name)}", loc, re.IGNORECASE)
+            if m:
+                return f"{m.group(1).strip()}, {abbr}"
+            return full_name
+
+    # If nothing matched, just clean up and truncate
+    loc = _ZIP_RE.sub("", loc).strip().rstrip(",").strip()
+    if len(loc) > 40:
+        loc = loc[:40].rsplit(",", 1)[0].strip()
+
+    return loc if loc else None
+
+
+def _extract_salary_from_description(desc_plain: str | None, existing_min, existing_max) -> tuple:
+    """Extract salary from description text if not already present."""
+    if existing_min is not None or not desc_plain:
+        return existing_min, existing_max
+
+    m = _DESC_SALARY_RE.search(desc_plain)
+    if not m:
+        return None, None
+
+    low = float(m.group(1).replace(",", ""))
+    high = float(m.group(2).replace(",", ""))
+
+    # Check if hourly
+    context = desc_plain[max(0, m.start() - 20):m.end() + 30]
+    if _HOURLY_RE.search(context):
+        low *= 2080
+        high *= 2080
+
+    # Sanity check: ignore if values seem wrong
+    if low < 10 or high > 10_000_000 or low > high:
+        return None, None
+
+    return int(low * 100), int(high * 100)
 
 
 def _slugify(text: str) -> str:
@@ -112,10 +194,19 @@ def _build_list_entry(job: dict) -> dict:
     company_display = normalize_company_name(
         job.get("company_name") or job.get("company_slug") or ""
     )
-    location = job.get("location")
-    state = _extract_state(location)
+    raw_location = job.get("location")
+    location = _normalize_location(raw_location)
+    state = _extract_state(raw_location) or _extract_state(location)
     jid = _job_id(job["url"])
     slug = _job_slug(company_display, job["title"], location, job["url"])
+
+    # Try extracting salary from description if not already present
+    salary_min = job.get("salary_min")
+    salary_max = job.get("salary_max")
+    if salary_min is None and job.get("description_plain"):
+        salary_min, salary_max = _extract_salary_from_description(
+            job.get("description_plain"), salary_min, salary_max
+        )
 
     return {
         "id": jid,
@@ -130,8 +221,8 @@ def _build_list_entry(job: dict) -> dict:
         "departments": json.loads(job["departments"]) if job.get("departments") else [],
         "is_recruiter": bool(job.get("is_recruiter")),
         "posted_date": job.get("posted_date"),
-        "salary_min": job.get("salary_min"),
-        "salary_max": job.get("salary_max"),
+        "salary_min": salary_min,
+        "salary_max": salary_max,
         "salary_currency": job.get("salary_currency", "USD"),
         "first_seen_at": job.get("first_seen_at"),
     }
