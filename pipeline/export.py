@@ -153,7 +153,7 @@ def _render_job_rows_html(jobs: list[dict], limit: int = 25) -> str:
         if salary:
             meta_parts.append(f'<span class="salary">{salary}</span>')
 
-        rows.append(f'''<a class="job-row" href="/jobs/{job["slug"]}/">
+        rows.append(f'''<a class="job-row" href="/job.html?id={job["id"]}">
   <div class="company-avatar" style="background:{color}">{initial}</div>
   <div class="job-info">
     <div class="job-title">{escape(job["title"])}</div>
@@ -497,37 +497,24 @@ def export_for_frontend(jobs: list[dict], stats: dict):
 
 
 def _generate_job_detail_pages(detail_jobs: list[tuple[dict, str]]):
-    """Generate /jobs/{company}/{title-hash}/index.html for each job."""
-    # Clean old detail files
-    jobs_dir = os.path.join(FRONTEND_DIR, "jobs")
-
-    count = 0
-    for entry, desc_html in detail_jobs:
-        slug = entry["slug"]
-        page_dir = os.path.join(FRONTEND_DIR, "jobs", slug)
-        os.makedirs(page_dir, exist_ok=True)
-
-        # Calculate relative CSS path based on depth
-        depth = slug.count("/") + 2  # jobs/ + at/ + company/ + slug/
-        css_path = "../" * depth + "css/style.css"
-
-        html = _job_detail_html(entry, desc_html, css_path)
-        with open(os.path.join(page_dir, "index.html"), "w") as f:
-            f.write(html)
-        count += 1
-
-    # Also write detail JSON files for JS fallback
+    """Generate JSON detail files for each job (loaded by job.html client-side)."""
     os.makedirs(DETAIL_DIR, exist_ok=True)
+    count = 0
     for entry, desc_html in detail_jobs:
         jid = entry["id"]
         prefix = jid[:2]
         detail_dir = os.path.join(DETAIL_DIR, prefix)
         os.makedirs(detail_dir, exist_ok=True)
-        detail = {**entry, "description_html": desc_html}
+
+        salary = _format_salary_html(entry.get("salary_min"), entry.get("salary_max"))
+        jsonld = _build_job_jsonld(entry, desc_html, salary)
+
+        detail = {**entry, "description_html": desc_html, "jsonld": jsonld}
         with open(os.path.join(detail_dir, f"{jid}.json"), "w") as f:
             json.dump(detail, f, separators=(",", ":"))
+        count += 1
 
-    logger.info("Generated %d job detail pages", count)
+    logger.info("Generated %d job detail files", count)
 
 
 def _generate_all_category_pages(list_jobs: list[dict]):

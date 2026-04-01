@@ -41,6 +41,14 @@ export async function renderDetail(container) {
   }
 
   renderJobDetail(job, container);
+
+  // Inject JSON-LD if present
+  if (job.jsonld) {
+    const existing = document.querySelector('script[type="application/ld+json"]');
+    if (!existing) {
+      document.head.insertAdjacentHTML("beforeend", job.jsonld);
+    }
+  }
 }
 
 function renderJobDetail(job, container) {
