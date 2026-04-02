@@ -174,7 +174,7 @@ a { color: inherit; text-decoration: none; }
   gap: 4px;
 }
 .zip-input {
-  width: 90px;
+  width: 110px;
   padding: 8px 12px;
   font-size: 14px;
   border: 1px solid var(--border);
@@ -185,7 +185,7 @@ a { color: inherit; text-decoration: none; }
 }
 .zip-input:focus { border-color: #9ca3af; }
 .zip-input::placeholder { color: #9ca3af; }
-.radius-select { width: 80px; }
+.radius-select { width: 100px; }
 .filter-toggle {
   display: flex;
   align-items: center;

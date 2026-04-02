@@ -20,7 +20,7 @@ from pipeline.metros import get_metro, get_metro_name, METROS
 
 logger = logging.getLogger(__name__)
 
-SITE_URL = "https://scrubshifts.pages.dev"
+SITE_URL = "https://nurseboard.pages.dev"
 FRONTEND_DIR = "frontend"
 
 _US_STATES = set(STATE_NAMES.keys())
