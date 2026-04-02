@@ -130,28 +130,36 @@ def get_unenriched(conn: sqlite3.Connection, ats: str, limit: int = 200) -> list
 def save_enrichment(conn: sqlite3.Connection, url: str, data: dict):
     """Save enrichment data for a job."""
     now = datetime.now(timezone.utc).isoformat()
+
+    # Update company_name if enricher found one (e.g. Greenhouse API returns real name)
+    company_update = ""
+    params = [
+        data.get("posted_date"),
+        data.get("salary_min"),
+        data.get("salary_max"),
+        data.get("salary_currency", "USD"),
+        data.get("description_html"),
+        data.get("description_plain"),
+    ]
+    if data.get("company_name"):
+        company_update = "company_name = ?,"
+        params.append(data["company_name"])
+
+    params.extend([now, now, url])
+
     conn.execute(
-        """UPDATE jobs SET
+        f"""UPDATE jobs SET
             posted_date = ?,
             salary_min = ?,
             salary_max = ?,
             salary_currency = ?,
             description_html = ?,
             description_plain = ?,
+            {company_update}
             enriched_at = ?,
             updated_at = ?
         WHERE url = ?""",
-        (
-            data.get("posted_date"),
-            data.get("salary_min"),
-            data.get("salary_max"),
-            data.get("salary_currency", "USD"),
-            data.get("description_html"),
-            data.get("description_plain"),
-            now,
-            now,
-            url,
-        ),
+        params,
     )
 
 

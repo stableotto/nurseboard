@@ -284,13 +284,72 @@ def _page_shell(title: str, meta_desc: str, canonical: str, css_path: str,
 <body>
   <header class="header">
     <div class="container">
-      <a href="/" class="logo">ScrubShifts</a>
-      <span class="tagline">Nursing jobs, aggregated daily</span>
+      <div class="header-left">
+        <a href="/" class="logo">ScrubShifts</a>
+        <nav class="header-nav">
+          <a href="/jobs/rn/">RN Jobs</a>
+          <a href="/jobs/nurse-practitioner/">NP Jobs</a>
+          <a href="/jobs/cna/">CNA Jobs</a>
+          <a href="/jobs/lpn/">LPN Jobs</a>
+          <a href="/jobs/nursing-with-salary/">With Salary</a>
+        </nav>
+      </div>
     </div>
   </header>
   <main class="container">
 {body}
   </main>
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <h4>By Role</h4>
+          <a href="/jobs/rn/">Registered Nurse</a>
+          <a href="/jobs/nurse-practitioner/">Nurse Practitioner</a>
+          <a href="/jobs/lpn/">LPN</a>
+          <a href="/jobs/lvn/">LVN</a>
+          <a href="/jobs/cna/">CNA</a>
+          <a href="/jobs/crna/">CRNA</a>
+          <a href="/jobs/case-manager/">Case Manager</a>
+          <a href="/jobs/nurse-manager/">Nurse Manager</a>
+        </div>
+        <div class="footer-col">
+          <h4>By Specialty</h4>
+          <a href="/jobs/icu-nurse/">ICU Nurse</a>
+          <a href="/jobs/er-nurse/">ER Nurse</a>
+          <a href="/jobs/or-nurse/">OR Nurse</a>
+          <a href="/jobs/med-surg/">Med-Surg</a>
+          <a href="/jobs/oncology-nurse/">Oncology</a>
+          <a href="/jobs/pediatric-nurse/">Pediatric</a>
+          <a href="/jobs/psychiatric-nurse/">Psychiatric</a>
+          <a href="/jobs/home-health/">Home Health</a>
+        </div>
+        <div class="footer-col">
+          <h4>Top States</h4>
+          <a href="/jobs/california/">California</a>
+          <a href="/jobs/texas/">Texas</a>
+          <a href="/jobs/new-york/">New York</a>
+          <a href="/jobs/florida/">Florida</a>
+          <a href="/jobs/illinois/">Illinois</a>
+          <a href="/jobs/massachusetts/">Massachusetts</a>
+          <a href="/jobs/tennessee/">Tennessee</a>
+          <a href="/jobs/virginia/">Virginia</a>
+        </div>
+        <div class="footer-col">
+          <h4>More</h4>
+          <a href="/jobs/travel-nurse/">Travel Nurse</a>
+          <a href="/jobs/remote-nurse/">Remote Jobs</a>
+          <a href="/jobs/per-diem/">Per Diem</a>
+          <a href="/jobs/night-shift/">Night Shift</a>
+          <a href="/jobs/part-time-nurse/">Part-Time</a>
+          <a href="/jobs/nursing-with-salary/">Jobs with Salary</a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>&copy; 2026 ScrubShifts. Nursing jobs, aggregated daily.</span>
+      </div>
+    </div>
+  </footer>
   <script type="module" src="{js_path}/app.js"></script>
 </body>
 </html>'''

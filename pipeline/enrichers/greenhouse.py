@@ -64,6 +64,7 @@ def enrich_greenhouse(job: dict) -> dict | None:
     result = {
         "posted_date": data.get("updated_at"),
         "description_html": content or None,
+        "company_name": data.get("company_name"),
     }
 
     if result["description_html"]:
