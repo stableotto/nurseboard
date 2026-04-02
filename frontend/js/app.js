@@ -87,17 +87,6 @@ async function initListPage() {
       opt.textContent = m.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
       metroSelect.appendChild(opt);
     });
-    // When metro is selected, clear state and vice versa
-    metroSelect.addEventListener("change", () => {
-      if (metroSelect.value && stateSelect) stateSelect.value = "";
-      currentPage = 1;
-      render();
-    });
-    if (stateSelect) {
-      stateSelect.addEventListener("change", () => {
-        if (stateSelect.value && metroSelect) metroSelect.value = "";
-      });
-    }
   } else if (metroSelect && catFilter.metro) {
     metroSelect.style.display = "none";
   }
@@ -136,7 +125,23 @@ async function initListPage() {
     });
   }
 
-  [roleSelect, stateSelect].forEach((el) => {
+  // Metro and state are mutually exclusive
+  if (metroSelect) {
+    metroSelect.addEventListener("change", () => {
+      if (metroSelect.value && stateSelect) stateSelect.value = "";
+      currentPage = 1;
+      render();
+    });
+  }
+  if (stateSelect) {
+    stateSelect.addEventListener("change", () => {
+      if (stateSelect.value && metroSelect) metroSelect.value = "";
+      currentPage = 1;
+      render();
+    });
+  }
+
+  [roleSelect].forEach((el) => {
     if (el) el.addEventListener("change", () => { currentPage = 1; render(); });
   });
 
