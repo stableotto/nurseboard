@@ -83,6 +83,11 @@ def enrich_workday(job: dict) -> dict | None:
 
     result = {}
 
+    # Extract company name from hiringOrganization
+    hiring_org = data.get("hiringOrganization", {})
+    if hiring_org.get("name"):
+        result["company_name"] = hiring_org["name"]
+
     posted_date = _parse_posted_on(jpi.get("postedOn", ""), jpi.get("startDate"))
     if posted_date:
         result["posted_date"] = posted_date

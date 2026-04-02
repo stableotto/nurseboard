@@ -60,6 +60,7 @@ def _fetch_company_jobs(tenant: str, wd_num: str, site_id: str) -> list[dict]:
 
     all_jobs = []
     offset = 0
+    company_name = tenant  # fallback to slug
 
     for page in range(MAX_PAGES):
         payload = {"appliedFacets": {}, "limit": JOBS_PER_PAGE, "offset": offset, "searchText": ""}
@@ -82,6 +83,20 @@ def _fetch_company_jobs(tenant: str, wd_num: str, site_id: str) -> list[dict]:
 
         total = data.get("total", 0)
 
+        # On first page, fetch one detail to get the real company name
+        if page == 0 and company_name == tenant and postings:
+            first_path = postings[0].get("externalPath", "")
+            if first_path:
+                try:
+                    detail_url = f"{base}/wday/cxs/{tenant}/{site_id}{first_path}"
+                    dr = requests.get(detail_url, headers={"Accept": "application/json"}, timeout=10)
+                    if dr.status_code == 200:
+                        hiring_org = dr.json().get("hiringOrganization", {})
+                        if hiring_org.get("name"):
+                            company_name = hiring_org["name"]
+                except Exception:
+                    pass
+
         for posting in postings:
             title = posting.get("title", "")
             external_path = posting.get("externalPath", "")
@@ -95,7 +110,7 @@ def _fetch_company_jobs(tenant: str, wd_num: str, site_id: str) -> list[dict]:
             # Build in upstream-compatible format
             job = {
                 "title": title,
-                "company": tenant,
+                "company": company_name,
                 "ats": "workday",
                 "url": job_url,
                 "location": location[:50],
