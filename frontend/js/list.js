@@ -20,7 +20,7 @@ export function renderJobList(jobs, page, container) {
       const initial = (job.company_name || "?")[0].toUpperCase();
       const color = companyColor(job.company_name);
       const salary = formatSalary(job.salary_min, job.salary_max, job.salary_currency);
-      const time = relativeTime(job.posted_date || job.first_seen_at);
+      const time = job._distance != null ? `${job._distance} mi` : relativeTime(job.posted_date || job.first_seen_at);
       const depts = (job.departments || []).join(", ");
       const metaParts = [
         job.company_name,

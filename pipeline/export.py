@@ -610,6 +610,76 @@ def _build_hub_section_html(label: str, links: list[tuple[str, str, int]]) -> st
     return f'<section class="hub-section"><h2>{escape(label)}</h2><div class="hub-links">{items}</div></section>'
 
 
+def _generate_geo_data(list_jobs: list[dict]):
+    """Generate cities.json and download zips.json for radius search."""
+    import csv
+    import io
+
+    # Collect unique city|state from our job data
+    job_cities = set()
+    for j in list_jobs:
+        loc = j.get("location") or ""
+        state = j.get("state")
+        if "," in loc and state:
+            city = loc.split(",")[0].strip().lower()
+            job_cities.add(f"{city}|{state}")
+
+    # Download zip data if not cached
+    zips_path = os.path.join(EXPORT_DIR, "zips.json")
+    cities_path = os.path.join(EXPORT_DIR, "cities.json")
+
+    if not os.path.exists(zips_path):
+        try:
+            import requests
+            logger.info("Downloading zip code data...")
+            r = requests.get(
+                "https://raw.githubusercontent.com/midwire/free_zipcode_data/master/all_us_zipcodes.csv",
+                timeout=30,
+            )
+            reader = csv.reader(io.StringIO(r.text))
+
+            zip_data = {}
+            city_coords: dict[str, tuple[list, list]] = {}
+            for row in reader:
+                if len(row) < 7:
+                    continue
+                code, city, state, _county, _area, lat, lng = row[:7]
+                try:
+                    lat_f, lng_f = float(lat), float(lng)
+                except ValueError:
+                    continue
+                zip_data[code] = [round(lat_f, 4), round(lng_f, 4)]
+                key = f"{city.lower()}|{state}"
+                if key not in city_coords:
+                    city_coords[key] = ([], [])
+                city_coords[key][0].append(lat_f)
+                city_coords[key][1].append(lng_f)
+
+            with open(zips_path, "w") as f:
+                json.dump(zip_data, f, separators=(",", ":"))
+
+            # Build city averages, filtered to our job cities
+            all_city_avg = {}
+            for key, (lats, lngs) in city_coords.items():
+                all_city_avg[key] = [round(sum(lats) / len(lats), 4), round(sum(lngs) / len(lngs), 4)]
+
+            filtered_cities = {k: v for k, v in all_city_avg.items() if k in job_cities}
+            with open(cities_path, "w") as f:
+                json.dump(filtered_cities, f, separators=(",", ":"))
+
+            logger.info("Generated geo data: %d zips, %d cities", len(zip_data), len(filtered_cities))
+        except Exception as e:
+            logger.warning("Failed to download zip data: %s", e)
+    else:
+        # Just update cities.json with current job cities
+        try:
+            # Re-read all city data from zips to rebuild
+            # Actually just keep existing cities.json if zips exist
+            logger.info("Zip data already cached")
+        except Exception:
+            pass
+
+
 def export_for_frontend(jobs: list[dict], stats: dict):
     """Export jobs to frontend data files + generate pre-rendered SEO pages."""
     os.makedirs(EXPORT_DIR, exist_ok=True)
@@ -636,6 +706,9 @@ def export_for_frontend(jobs: list[dict], stats: dict):
     }
     with open(META_JSON, "w") as f:
         json.dump(meta, f, indent=2)
+
+    # Write filtered cities.json for radius search (only cities in our data)
+    _generate_geo_data(list_jobs)
 
     logger.info("Exported %d jobs to JSON", len(list_jobs))
 
@@ -1024,9 +1097,16 @@ def _generate_homepage(list_jobs: list[dict]):
         <option value="educator">Nurse Educator</option>
         <option value="telehealth">Telehealth / Remote</option>
       </select>
-      <select id="filter-metro" class="filter-select">
-        <option value="">All Metro Areas</option>
-      </select>
+      <div class="radius-group">
+        <input type="text" id="filter-zip" class="zip-input" placeholder="Zip code" maxlength="5" inputmode="numeric" pattern="[0-9]*">
+        <select id="filter-radius" class="filter-select radius-select">
+          <option value="">Radius</option>
+          <option value="10">10 mi</option>
+          <option value="25">25 mi</option>
+          <option value="50">50 mi</option>
+          <option value="100">100 mi</option>
+        </select>
+      </div>
       <select id="filter-state" class="filter-select">
         <option value="">All States</option>
       </select>

@@ -5,6 +5,7 @@
  */
 import { filterJobs } from "./filters.js";
 import { renderJobList, renderPagination } from "./list.js";
+import { filterByRadius } from "./radius.js";
 
 initListPage();
 
@@ -17,6 +18,8 @@ async function initListPage() {
   const roleSelect = document.getElementById("filter-role");
   const stateSelect = document.getElementById("filter-state");
   const metroSelect = document.getElementById("filter-metro");
+  const zipInput = document.getElementById("filter-zip");
+  const radiusSelect = document.getElementById("filter-radius");
   const salaryToggle = document.getElementById("filter-salary");
   const recruiterToggle = document.getElementById("filter-recruiter");
 
@@ -91,8 +94,8 @@ async function initListPage() {
     metroSelect.style.display = "none";
   }
 
-  function render() {
-    const filtered = filterJobs(allJobs, {
+  async function render() {
+    let filtered = filterJobs(allJobs, {
       query: searchInput ? searchInput.value : "",
       role: roleSelect ? roleSelect.value : "",
       state: stateSelect ? stateSelect.value : "",
@@ -100,6 +103,15 @@ async function initListPage() {
       hasSalary: salaryToggle ? salaryToggle.checked : false,
       hideRecruiters: recruiterToggle ? recruiterToggle.checked : false,
     });
+
+    // Apply radius filter if zip + radius are set
+    const zip = zipInput ? zipInput.value.trim() : "";
+    const radius = radiusSelect ? parseInt(radiusSelect.value) : 0;
+    if (zip.length === 5 && radius > 0) {
+      filtered = await filterByRadius(filtered, zip, radius);
+      // Sort by distance
+      filtered.sort((a, b) => (a._distance || 999) - (b._distance || 999));
+    }
 
     if (countEl) {
       countEl.textContent = `${filtered.length} nursing job${filtered.length !== 1 ? "s" : ""}`;
@@ -125,17 +137,50 @@ async function initListPage() {
     });
   }
 
-  // Metro and state are mutually exclusive
+  // Location filters: radius, metro, state are mutually exclusive
+  if (zipInput) {
+    let zipTimer;
+    const onZipChange = () => {
+      clearTimeout(zipTimer);
+      zipTimer = setTimeout(() => {
+        if (zipInput.value.trim().length === 5 && radiusSelect && radiusSelect.value) {
+          if (stateSelect) stateSelect.value = "";
+          if (metroSelect) metroSelect.value = "";
+          currentPage = 1;
+          render();
+        }
+      }, 300);
+    };
+    zipInput.addEventListener("input", onZipChange);
+  }
+  if (radiusSelect) {
+    radiusSelect.addEventListener("change", () => {
+      if (zipInput && zipInput.value.trim().length === 5) {
+        if (stateSelect) stateSelect.value = "";
+        if (metroSelect) metroSelect.value = "";
+        currentPage = 1;
+        render();
+      }
+    });
+  }
   if (metroSelect) {
     metroSelect.addEventListener("change", () => {
-      if (metroSelect.value && stateSelect) stateSelect.value = "";
+      if (metroSelect.value) {
+        if (stateSelect) stateSelect.value = "";
+        if (zipInput) zipInput.value = "";
+        if (radiusSelect) radiusSelect.value = "";
+      }
       currentPage = 1;
       render();
     });
   }
   if (stateSelect) {
     stateSelect.addEventListener("change", () => {
-      if (stateSelect.value && metroSelect) metroSelect.value = "";
+      if (stateSelect.value) {
+        if (metroSelect) metroSelect.value = "";
+        if (zipInput) zipInput.value = "";
+        if (radiusSelect) radiusSelect.value = "";
+      }
       currentPage = 1;
       render();
     });
