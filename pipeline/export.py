@@ -16,6 +16,7 @@ from pipeline.config import (
     normalize_company_name, SEO_CATEGORIES, STATE_NAMES, STATE_SLUGS,
     MIN_JOBS_FOR_PAGE,
 )
+from pipeline.metros import get_metro, get_metro_name, METROS
 
 logger = logging.getLogger(__name__)
 
@@ -200,6 +201,10 @@ def _build_list_entry(job: dict) -> dict:
     jid = _job_id(job["url"])
     slug = _job_slug(company_display, job["title"], location, job["url"])
 
+    # Determine metro area
+    city = location.split(",")[0].strip() if location and "," in location else None
+    metro = get_metro(city, state)
+
     # Try extracting salary from description if not already present
     salary_min = job.get("salary_min")
     salary_max = job.get("salary_max")
@@ -217,6 +222,7 @@ def _build_list_entry(job: dict) -> dict:
         "company_name": company_display,
         "location": location,
         "state": state,
+        "metro": metro,
         "ats_platform": job["ats_platform"],
         "departments": json.loads(job["departments"]) if job.get("departments") else [],
         "is_recruiter": bool(job.get("is_recruiter")),
@@ -815,7 +821,55 @@ def _generate_all_category_pages(list_jobs: list[dict]):
             f.write(html)
         total += 1
 
-    # 4. Company pages: /jobs/at/{company}/
+    # 4. Metro pages: /jobs/metro/{metro-slug}/
+    by_metro: dict[str, list] = {}
+    for j in list_jobs:
+        m = j.get("metro")
+        if m:
+            by_metro.setdefault(m, []).append(j)
+
+    for metro_slug, metro_jobs in by_metro.items():
+        if len(metro_jobs) < MIN_JOBS_FOR_PAGE:
+            continue
+
+        metro_name = get_metro_name(metro_slug)
+        companies = len(set(j["company_name"] for j in metro_jobs))
+
+        # Related: role breakdowns in this metro
+        metro_role_links = []
+        for s, d, rx, _, m in cat_matchers:
+            if rx:
+                cnt = sum(1 for j in metro_jobs if m(j))
+                if cnt >= MIN_JOBS_FOR_PAGE:
+                    metro_role_links.append((f"/jobs/{s}/", d, cnt))
+        metro_role_links.sort(key=lambda x: -x[2])
+
+        metro_seo = f"<p>We track nursing positions in the {metro_name} metro area from {companies} healthcare employers.</p>"
+        metro_seo += _build_related_links_html(f"Roles in {metro_name}", metro_role_links[:12])
+
+        page_dir = os.path.join(FRONTEND_DIR, "jobs", "metro", metro_slug)
+        os.makedirs(page_dir, exist_ok=True)
+
+        heading = f"Nursing Jobs in {metro_name}"
+        meta_desc = f"Browse {len(metro_jobs)} nursing jobs in the {metro_name} metro area. Updated daily with salary data and direct application links."
+
+        html = _category_page_html(
+            heading=heading,
+            description=meta_desc,
+            meta_desc=meta_desc,
+            canonical=f"{SITE_URL}/jobs/metro/{metro_slug}/",
+            css_path="../../../css/style.css",
+            js_path="../../../js",
+            data_path="../../../data",
+            jobs=metro_jobs,
+            category_filter_json=json.dumps({"metro": metro_slug}),
+            extra_seo=metro_seo,
+        )
+        with open(os.path.join(page_dir, "index.html"), "w") as f:
+            f.write(html)
+        total += 1
+
+    # 5. Company pages: /jobs/at/{company}/
     by_company: dict[str, list] = {}
     for j in list_jobs:
         slug_parts = j["slug"].split("/")  # at/company/title-hash
@@ -911,8 +965,20 @@ def _generate_homepage(list_jobs: list[dict]):
         key=lambda x: -x[2],
     )[:24]
 
+    # Build metro links
+    by_metro_hp: dict[str, int] = {}
+    for j in list_jobs:
+        m = j.get("metro")
+        if m:
+            by_metro_hp[m] = by_metro_hp.get(m, 0) + 1
+    metro_links = sorted(
+        [(f"/jobs/metro/{slug}/", get_metro_name(slug), cnt) for slug, cnt in by_metro_hp.items() if cnt >= MIN_JOBS_FOR_PAGE],
+        key=lambda x: -x[2],
+    )[:20]
+
     pre_rendered = _render_job_rows_html(list_jobs)
     hub_roles = _build_hub_section_html("Browse by Role", role_links)
+    hub_metros = _build_hub_section_html("Browse by Metro Area", metro_links)
     hub_states = _build_hub_section_html("Browse by State", state_links[:20])
     hub_companies = _build_hub_section_html("Top Employers", company_links)
     homepage = _page_shell(
@@ -958,6 +1024,9 @@ def _generate_homepage(list_jobs: list[dict]):
         <option value="educator">Nurse Educator</option>
         <option value="telehealth">Telehealth / Remote</option>
       </select>
+      <select id="filter-metro" class="filter-select">
+        <option value="">All Metro Areas</option>
+      </select>
       <select id="filter-state" class="filter-select">
         <option value="">All States</option>
       </select>
@@ -977,6 +1046,7 @@ def _generate_homepage(list_jobs: list[dict]):
     <div id="pagination" class="pagination"></div>
 
     {hub_roles}
+    {hub_metros}
     {hub_states}
     {hub_companies}''',
     )

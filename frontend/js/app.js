@@ -16,6 +16,7 @@ async function initListPage() {
   const searchInput = document.getElementById("search");
   const roleSelect = document.getElementById("filter-role");
   const stateSelect = document.getElementById("filter-state");
+  const metroSelect = document.getElementById("filter-metro");
   const salaryToggle = document.getElementById("filter-salary");
   const recruiterToggle = document.getElementById("filter-recruiter");
 
@@ -51,6 +52,9 @@ async function initListPage() {
       const cs = catFilter.company;
       jobs = jobs.filter((j) => j.slug && j.slug.split("/")[1] === cs);
     }
+    if (catFilter.metro) {
+      jobs = jobs.filter((j) => j.metro === catFilter.metro);
+    }
     if (catFilter.hasSalary) {
       jobs = jobs.filter((j) => j.salary_min != null);
     }
@@ -74,11 +78,36 @@ async function initListPage() {
     stateSelect.style.display = "none";
   }
 
+  // Populate metro filter
+  if (metroSelect && !catFilter.metro) {
+    const metros = [...new Set(allJobs.map((j) => j.metro).filter(Boolean))].sort();
+    metros.forEach((m) => {
+      const opt = document.createElement("option");
+      opt.value = m;
+      opt.textContent = m.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+      metroSelect.appendChild(opt);
+    });
+    // When metro is selected, clear state and vice versa
+    metroSelect.addEventListener("change", () => {
+      if (metroSelect.value && stateSelect) stateSelect.value = "";
+      currentPage = 1;
+      render();
+    });
+    if (stateSelect) {
+      stateSelect.addEventListener("change", () => {
+        if (stateSelect.value && metroSelect) metroSelect.value = "";
+      });
+    }
+  } else if (metroSelect && catFilter.metro) {
+    metroSelect.style.display = "none";
+  }
+
   function render() {
     const filtered = filterJobs(allJobs, {
       query: searchInput ? searchInput.value : "",
       role: roleSelect ? roleSelect.value : "",
       state: stateSelect ? stateSelect.value : "",
+      metro: metroSelect ? metroSelect.value : "",
       hasSalary: salaryToggle ? salaryToggle.checked : false,
       hideRecruiters: recruiterToggle ? recruiterToggle.checked : false,
     });
