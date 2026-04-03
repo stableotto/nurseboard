@@ -8,7 +8,7 @@ export async function onRequestPost(context) {
 
   try {
     const body = await request.json();
-    const { email, role, metro, state } = body;
+    const { email, role, metro, state, employer } = body;
 
     if (!email || !email.includes("@")) {
       return new Response(JSON.stringify({ error: "Valid email required" }), {
@@ -34,6 +34,7 @@ export async function onRequestPost(context) {
       role: role || null,
       metro: metro || null,
       state: state || null,
+      employer: employer || null,
       created_at: new Date().toISOString(),
     });
 

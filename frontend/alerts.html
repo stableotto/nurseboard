@@ -40,66 +40,109 @@
           <input type="email" id="alert-email" required placeholder="you@example.com">
         </div>
         <div class="alert-field">
-          <label for="alert-role">Role (optional)</label>
+          <label for="alert-role">Role</label>
           <select id="alert-role">
             <option value="">All nursing jobs</option>
-            <option value="rn">RN - Registered Nurse</option>
-            <option value="lpn-lvn">LPN / LVN</option>
-            <option value="cna">CNA</option>
-            <option value="np">Nurse Practitioner / APRN</option>
-            <option value="case-manager">Case Manager</option>
-            <option value="travel-nurse">Travel Nurse</option>
-            <option value="icu">ICU / Critical Care</option>
-            <option value="er">ER / Emergency</option>
-            <option value="home-health">Home Health</option>
-            <option value="nurse-manager">Nurse Manager</option>
-            <option value="psych">Psychiatric / Behavioral</option>
+            <optgroup label="Core Roles">
+              <option value="rn">RN - Registered Nurse</option>
+              <option value="lpn-lvn">LPN / LVN</option>
+              <option value="cna">CNA</option>
+              <option value="np">Nurse Practitioner / APRN</option>
+              <option value="crna">CRNA - Nurse Anesthetist</option>
+              <option value="case-manager">Case Manager</option>
+            </optgroup>
+            <optgroup label="Specialty">
+              <option value="icu">ICU / Critical Care</option>
+              <option value="er">ER / Emergency</option>
+              <option value="or-nurse">OR / Surgical</option>
+              <option value="med-surg">Med-Surg</option>
+              <option value="pediatric">Pediatric / NICU / PICU</option>
+              <option value="oncology">Oncology</option>
+              <option value="psych">Psychiatric / Behavioral</option>
+              <option value="home-health">Home Health / Hospice</option>
+              <option value="labor-delivery">Labor & Delivery</option>
+            </optgroup>
+            <optgroup label="Work Type">
+              <option value="travel-nurse">Travel Nurse</option>
+              <option value="telehealth">Remote / Telehealth</option>
+              <option value="per-diem">Per Diem / PRN</option>
+              <option value="part-time-nurse">Part-Time</option>
+              <option value="night-shift">Night Shift</option>
+            </optgroup>
+            <optgroup label="Leadership">
+              <option value="charge-nurse">Charge Nurse</option>
+              <option value="nurse-manager">Nurse Manager</option>
+              <option value="educator">Nurse Educator</option>
+              <option value="clinical-nurse">Clinical Nurse</option>
+            </optgroup>
           </select>
         </div>
         <div class="alert-field">
-          <label for="alert-metro">Metro area (optional)</label>
+          <label for="alert-metro">Metro area</label>
           <select id="alert-metro">
             <option value="">Anywhere</option>
-            <option value="atlanta">Atlanta</option>
-            <option value="austin">Austin</option>
-            <option value="boston">Greater Boston</option>
-            <option value="charlotte">Charlotte</option>
-            <option value="chicago">Chicago</option>
-            <option value="dallas-fort-worth">Dallas-Fort Worth</option>
-            <option value="denver">Denver</option>
-            <option value="detroit">Detroit</option>
-            <option value="houston">Houston</option>
-            <option value="indianapolis">Indianapolis</option>
-            <option value="jacksonville">Jacksonville</option>
-            <option value="kansas-city">Kansas City</option>
-            <option value="las-vegas">Las Vegas</option>
-            <option value="los-angeles">Los Angeles</option>
-            <option value="miami">Miami</option>
-            <option value="minneapolis">Minneapolis-St. Paul</option>
-            <option value="nashville">Nashville</option>
-            <option value="new-orleans">New Orleans</option>
-            <option value="nyc-metro">New York City Metro</option>
-            <option value="orlando">Orlando</option>
-            <option value="philadelphia">Philadelphia</option>
-            <option value="phoenix">Phoenix</option>
-            <option value="pittsburgh">Pittsburgh</option>
-            <option value="portland">Portland</option>
-            <option value="raleigh-durham">Raleigh-Durham</option>
-            <option value="sacramento">Sacramento</option>
-            <option value="salt-lake-city">Salt Lake City</option>
-            <option value="san-antonio">San Antonio</option>
-            <option value="san-diego">San Diego</option>
-            <option value="san-francisco-bay-area">San Francisco Bay Area</option>
-            <option value="seattle">Seattle</option>
-            <option value="st-louis">St. Louis</option>
-            <option value="tampa-bay">Tampa Bay</option>
-            <option value="dc-metro">Washington DC Metro</option>
+            <optgroup label="Northeast">
+              <option value="boston">Greater Boston</option>
+              <option value="nyc-metro">New York City Metro</option>
+              <option value="northern-nj">Northern New Jersey</option>
+              <option value="philadelphia">Philadelphia</option>
+              <option value="pittsburgh">Pittsburgh</option>
+              <option value="dc-metro">Washington DC Metro</option>
+            </optgroup>
+            <optgroup label="Southeast">
+              <option value="atlanta">Atlanta</option>
+              <option value="charlotte">Charlotte</option>
+              <option value="jacksonville">Jacksonville</option>
+              <option value="memphis">Memphis</option>
+              <option value="miami">Miami</option>
+              <option value="nashville">Nashville</option>
+              <option value="orlando">Orlando</option>
+              <option value="raleigh-durham">Raleigh-Durham</option>
+              <option value="tampa-bay">Tampa Bay</option>
+            </optgroup>
+            <optgroup label="Midwest">
+              <option value="chicago">Chicago</option>
+              <option value="cincinnati">Cincinnati</option>
+              <option value="cleveland">Cleveland</option>
+              <option value="columbus">Columbus</option>
+              <option value="detroit">Detroit</option>
+              <option value="indianapolis">Indianapolis</option>
+              <option value="kansas-city">Kansas City</option>
+              <option value="milwaukee">Milwaukee</option>
+              <option value="minneapolis">Minneapolis-St. Paul</option>
+              <option value="st-louis">St. Louis</option>
+            </optgroup>
+            <optgroup label="West">
+              <option value="denver">Denver</option>
+              <option value="las-vegas">Las Vegas</option>
+              <option value="los-angeles">Los Angeles</option>
+              <option value="phoenix">Phoenix</option>
+              <option value="portland">Portland</option>
+              <option value="sacramento">Sacramento</option>
+              <option value="salt-lake-city">Salt Lake City</option>
+              <option value="san-antonio">San Antonio</option>
+              <option value="san-diego">San Diego</option>
+              <option value="san-francisco-bay-area">San Francisco Bay Area</option>
+              <option value="seattle">Seattle</option>
+            </optgroup>
+            <optgroup label="Texas">
+              <option value="austin">Austin</option>
+              <option value="dallas-fort-worth">Dallas-Fort Worth</option>
+              <option value="houston">Houston</option>
+              <option value="san-antonio">San Antonio</option>
+            </optgroup>
           </select>
         </div>
         <div class="alert-field">
           <label for="alert-state">Or by state</label>
           <select id="alert-state">
             <option value="">Any state</option>
+          </select>
+        </div>
+        <div class="alert-field">
+          <label for="alert-employer">Specific employer (optional)</label>
+          <select id="alert-employer">
+            <option value="">All employers</option>
           </select>
         </div>
       </div>
@@ -141,6 +184,25 @@
       stateSelect.appendChild(opt);
     });
 
+    // Populate employer dropdown from jobs data
+    const employerSelect = document.getElementById("alert-employer");
+    fetch("/data/jobs.json").then(r => r.json()).then(jobs => {
+      const counts = {};
+      jobs.forEach(j => {
+        const name = j.company_name;
+        if (name) counts[name] = (counts[name] || 0) + 1;
+      });
+      Object.entries(counts)
+        .sort((a, b) => b[1] - a[1])
+        .filter(([_, cnt]) => cnt >= 3)
+        .forEach(([name, cnt]) => {
+          const opt = document.createElement("option");
+          opt.value = name;
+          opt.textContent = `${name} (${cnt} jobs)`;
+          employerSelect.appendChild(opt);
+        });
+    }).catch(() => {});
+
     // Metro clears state and vice versa
     document.getElementById("alert-metro").addEventListener("change", function() {
       if (this.value) stateSelect.value = "";
@@ -166,6 +228,7 @@
             role: document.getElementById("alert-role").value,
             metro: document.getElementById("alert-metro").value,
             state: document.getElementById("alert-state").value,
+            employer: document.getElementById("alert-employer").value,
           }),
         });
         const data = await resp.json();
