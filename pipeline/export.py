@@ -296,8 +296,8 @@ def _page_shell(title: str, meta_desc: str, canonical: str, css_path: str,
           <a href="/jobs/rn/">RN Jobs</a>
           <a href="/jobs/nurse-practitioner/">NP Jobs</a>
           <a href="/jobs/cna/">CNA Jobs</a>
-          <a href="/jobs/lpn/">LPN Jobs</a>
-          <a href="/jobs/nursing-with-salary/">With Salary</a>
+          <a href="/alerts.html">Alerts</a>
+          <a href="/promote.html">For Employers</a>
         </nav>
       </div>
     </div>
