@@ -137,8 +137,8 @@ def _job_slug(company_name: str, title: str, location: str | None, url: str) -> 
     if location:
         parts.append(location)
     slug = _slugify(" ".join(parts))
-    # Append short hash to avoid collisions
-    h = hashlib.md5(url.encode()).hexdigest()[:6]
+    # Append full ID for direct detail file lookup (no jobs.json needed)
+    h = hashlib.md5(url.encode()).hexdigest()[:12]
     return f"at/{company}/{slug}-{h}"
 
 

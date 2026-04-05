@@ -6,6 +6,7 @@ import { formatSalary, companyColor } from "./filters.js";
 
 export async function renderDetail(container) {
   // Parse slug from path: /listing/at/company/title-hash/
+  // Last 12 chars of slug are the job ID for direct detail file lookup
   const path = window.location.pathname;
   const slug = path.replace(/^\/listing\//, "").replace(/\/$/, "");
 
@@ -14,24 +15,21 @@ export async function renderDetail(container) {
     return;
   }
 
-  container.innerHTML = '<div class="loading">Loading job details...</div>';
+  // Extract job ID from end of slug (last 12 hex chars after final hyphen)
+  const parts = slug.split("-");
+  const id = parts[parts.length - 1];
+  if (!id || id.length < 12) {
+    container.innerHTML = '<div class="empty-state">Job not found.</div>';
+    return;
+  }
 
-  // Find job by slug in jobs.json, then load detail JSON
+  const prefix = id.substring(0, 2);
+
+  // Single request — go straight to the detail JSON file
   let job = null;
   try {
-    const listResp = await fetch("/data/jobs.json");
-    if (listResp.ok) {
-      const allJobs = await listResp.json();
-      job = allJobs.find((j) => j.slug === slug);
-      if (job) {
-        // Load full detail with description
-        const prefix = job.id.substring(0, 2);
-        try {
-          const detResp = await fetch(`/data/jobs/${prefix}/${job.id}.json`);
-          if (detResp.ok) job = await detResp.json();
-        } catch {}
-      }
-    }
+    const resp = await fetch(`/data/jobs/${prefix}/${id}.json`);
+    if (resp.ok) job = await resp.json();
   } catch {}
 
   if (!job) {
