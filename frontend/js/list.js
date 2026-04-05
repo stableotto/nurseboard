@@ -28,11 +28,14 @@ export function renderJobList(jobs, page, container) {
         salary ? `<span class="salary">${salary}</span>` : null,
       ].filter(Boolean);
 
+      const shiftLabels = { days: "Days", nights: "Nights", evenings: "Evenings", weekends: "Weekends", prn: "PRN", rotating: "Rotating" };
+      const shiftBadge = job.shift ? `<span class="shift-badge">${shiftLabels[job.shift] || job.shift}</span>` : "";
+
       const href = `/listing/${job.slug || job.id}/`;
       return `<a class="job-row" href="${href}">
         <div class="company-avatar" style="background:${color}">${initial}</div>
         <div class="job-info">
-          <div class="job-title">${escapeHtml(job.title)}</div>
+          <div class="job-title">${escapeHtml(job.title)} ${shiftBadge}</div>
           <div class="job-meta">${metaParts.join(" &middot; ")}</div>
         </div>
         <div class="job-right">

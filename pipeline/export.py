@@ -585,15 +585,6 @@ def _category_page_html(heading: str, description: str, meta_desc: str,
 
     <div class="filter-row">
       <select id="filter-role" class="filter-select" style="display:none"></select>
-      <select id="filter-shift" class="filter-select">
-        <option value="">All Shifts</option>
-        <option value="days">Days</option>
-        <option value="nights">Nights</option>
-        <option value="evenings">Evenings</option>
-        <option value="weekends">Weekends</option>
-        <option value="rotating">Rotating</option>
-        <option value="prn">PRN / Per Diem</option>
-      </select>
       <div class="radius-group">
         <input type="text" id="filter-zip" class="zip-input" placeholder="Zip code" maxlength="5" inputmode="numeric" pattern="[0-9]*">
         <select id="filter-radius" class="filter-select radius-select">
@@ -1144,15 +1135,6 @@ def _generate_homepage(list_jobs: list[dict]):
         <option value="midwife">Midwife</option>
         <option value="educator">Nurse Educator</option>
         <option value="telehealth">Telehealth / Remote</option>
-      </select>
-      <select id="filter-shift" class="filter-select">
-        <option value="">All Shifts</option>
-        <option value="days">Days</option>
-        <option value="nights">Nights</option>
-        <option value="evenings">Evenings</option>
-        <option value="weekends">Weekends</option>
-        <option value="rotating">Rotating</option>
-        <option value="prn">PRN / Per Diem</option>
       </select>
       <div class="radius-group">
         <input type="text" id="filter-zip" class="zip-input" placeholder="Zip code" maxlength="5" inputmode="numeric" pattern="[0-9]*">

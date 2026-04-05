@@ -16,7 +16,6 @@ async function initListPage() {
   const countEl = document.getElementById("result-count");
   const searchInput = document.getElementById("search");
   const roleSelect = document.getElementById("filter-role");
-  const shiftSelect = document.getElementById("filter-shift");
   const stateSelect = document.getElementById("filter-state");
   const metroSelect = document.getElementById("filter-metro");
   const zipInput = document.getElementById("filter-zip");
@@ -99,7 +98,6 @@ async function initListPage() {
     let filtered = filterJobs(allJobs, {
       query: searchInput ? searchInput.value : "",
       role: roleSelect ? roleSelect.value : "",
-      shift: shiftSelect ? shiftSelect.value : "",
       state: stateSelect ? stateSelect.value : "",
       metro: metroSelect ? metroSelect.value : "",
       hasSalary: salaryToggle ? salaryToggle.checked : false,
@@ -188,7 +186,7 @@ async function initListPage() {
     });
   }
 
-  [roleSelect, shiftSelect].forEach((el) => {
+  [roleSelect].forEach((el) => {
     if (el) el.addEventListener("change", () => { currentPage = 1; render(); });
   });
 

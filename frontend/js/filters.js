@@ -25,7 +25,7 @@ const ROLE_PATTERNS = {
   "telehealth": /\bremote\b|\btelehealth\b|\btelemedicine\b|\bvirtual\s+(?:care|nurse|nursing)\b/i,
 };
 
-export function filterJobs(jobs, { query, role, state, metro, shift, hasSalary, hideRecruiters }) {
+export function filterJobs(jobs, { query, role, state, metro, hasSalary, hideRecruiters }) {
   let filtered = jobs;
 
   if (query) {
@@ -47,10 +47,6 @@ export function filterJobs(jobs, { query, role, state, metro, shift, hasSalary, 
     filtered = filtered.filter((j) => j.metro === metro);
   } else if (state) {
     filtered = filtered.filter((j) => j.state === state);
-  }
-
-  if (shift) {
-    filtered = filtered.filter((j) => j.shift === shift);
   }
 
   if (hasSalary) {
