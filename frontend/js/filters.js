@@ -60,6 +60,39 @@ export function filterJobs(jobs, { query, role, state, metro, hasSalary, hideRec
   return filtered;
 }
 
+export function interleaveByCompany(jobs) {
+  // Group by company, keeping each group sorted by date (already sorted)
+  const byCompany = {};
+  for (const job of jobs) {
+    const key = job.company_name || "unknown";
+    if (!byCompany[key]) byCompany[key] = [];
+    byCompany[key].push(job);
+  }
+
+  // Sort company groups by their newest job date
+  const groups = Object.values(byCompany).sort((a, b) => {
+    const da = a[0].posted_date || a[0].first_seen_at || "";
+    const db = b[0].posted_date || b[0].first_seen_at || "";
+    return db.localeCompare(da);
+  });
+
+  // Round-robin: deal one job from each company per round
+  const result = [];
+  let round = 0;
+  let added = true;
+  while (added) {
+    added = false;
+    for (const group of groups) {
+      if (round < group.length) {
+        result.push(group[round]);
+        added = true;
+      }
+    }
+    round++;
+  }
+  return result;
+}
+
 export function formatSalary(min, max, currency) {
   if (min == null && max == null) return null;
   const fmt = (cents) => {

@@ -3,7 +3,7 @@
  * Works on homepage and category pages.
  * Category pages set window.__CATEGORY_FILTER to pre-filter jobs.
  */
-import { filterJobs } from "./filters.js";
+import { filterJobs, interleaveByCompany } from "./filters.js";
 import { renderJobList, renderPagination } from "./list.js";
 import { filterByRadius } from "./radius.js";
 
@@ -109,8 +109,10 @@ async function initListPage() {
     const radius = radiusSelect ? parseInt(radiusSelect.value) : 0;
     if (zip.length === 5 && radius > 0) {
       filtered = await filterByRadius(filtered, zip, radius);
-      // Sort by distance
       filtered.sort((a, b) => (a._distance || 999) - (b._distance || 999));
+    } else if (!searchInput?.value) {
+      // Interleave companies so homepage isn't 40 jobs from one employer
+      filtered = interleaveByCompany(filtered);
     }
 
     if (countEl) {
