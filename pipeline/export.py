@@ -250,7 +250,7 @@ def _render_job_rows_html(jobs: list[dict], limit: int = 25) -> str:
         if salary:
             meta_parts.append(f'<span class="salary">{salary}</span>')
 
-        rows.append(f'''<a class="job-row" href="/job.html?id={job["id"]}">
+        rows.append(f'''<a class="job-row" href="/job/{job["slug"]}/">
   <div class="company-avatar" style="background:{color}">{initial}</div>
   <div class="job-info">
     <div class="job-title">{escape(job["title"])}</div>
@@ -556,6 +556,16 @@ def _category_page_html(heading: str, description: str, meta_desc: str,
 
     <div class="filter-row">
       <select id="filter-role" class="filter-select" style="display:none"></select>
+      <div class="radius-group">
+        <input type="text" id="filter-zip" class="zip-input" placeholder="Zip code" maxlength="5" inputmode="numeric" pattern="[0-9]*">
+        <select id="filter-radius" class="filter-select radius-select">
+          <option value="">Radius</option>
+          <option value="10">10 mi</option>
+          <option value="25">25 mi</option>
+          <option value="50">50 mi</option>
+          <option value="100">100 mi</option>
+        </select>
+      </div>
       <select id="filter-state" class="filter-select">
         <option value="">All States</option>
       </select>
