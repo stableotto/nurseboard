@@ -31,6 +31,31 @@ _ZIP_RE = re.compile(r"\b\d{5}(?:-\d{4})?\b")
 _FULL_STATE_NAMES = {v: k for k, v in STATE_NAMES.items()}
 
 # Salary regex for extracting from description text
+# Shift detection patterns (checked against title, then description first line)
+_SHIFT_PATTERNS = [
+    ("nights", re.compile(r"\bnight\s*shift|\bnights?\b|\b7p\b|\bnoc\b|\bovernight\b|\b3rd\s+shift|\bthird\s+shift", re.IGNORECASE)),
+    ("days", re.compile(r"\bday\s*shift|\bdays?\b(?!\s*ago)|\b7a\b|\b1st\s+shift|\bfirst\s+shift", re.IGNORECASE)),
+    ("evenings", re.compile(r"\bevening\b|\b2nd\s+shift|\bsecond\s+shift|\b3p\b", re.IGNORECASE)),
+    ("weekends", re.compile(r"\bweekend\b|\bsat\b.*\bsun\b|\bbaylor\b", re.IGNORECASE)),
+    ("prn", re.compile(r"\bPRN\b|\bper[\s\-]?diem\b|\bas[\s\-]needed\b", re.IGNORECASE)),
+    ("rotating", re.compile(r"\brotating\b|\bvariable\b", re.IGNORECASE)),
+]
+
+
+def _detect_shift(title: str, description: str | None = None) -> str | None:
+    """Detect shift type from job title (and optionally description)."""
+    for shift_name, pattern in _SHIFT_PATTERNS:
+        if pattern.search(title):
+            return shift_name
+    # Check first 200 chars of description as fallback
+    if description:
+        snippet = description[:200]
+        for shift_name, pattern in _SHIFT_PATTERNS:
+            if pattern.search(snippet):
+                return shift_name
+    return None
+
+
 _DESC_SALARY_RE = re.compile(
     r"\$\s*([\d,]+(?:\.\d{2})?)\s*(?:[-\u2013/]|to)\s*\$\s*([\d,]+(?:\.\d{2})?)"
 )
@@ -205,6 +230,9 @@ def _build_list_entry(job: dict) -> dict:
     city = location.split(",")[0].strip() if location and "," in location else None
     metro = get_metro(city, state)
 
+    # Detect shift
+    shift = _detect_shift(job["title"], job.get("description_plain"))
+
     # Try extracting salary from description if not already present
     salary_min = job.get("salary_min")
     salary_max = job.get("salary_max")
@@ -223,6 +251,7 @@ def _build_list_entry(job: dict) -> dict:
         "location": location,
         "state": state,
         "metro": metro,
+        "shift": shift,
         "ats_platform": job["ats_platform"],
         "departments": json.loads(job["departments"]) if job.get("departments") else [],
         "is_recruiter": bool(job.get("is_recruiter")),
@@ -556,6 +585,15 @@ def _category_page_html(heading: str, description: str, meta_desc: str,
 
     <div class="filter-row">
       <select id="filter-role" class="filter-select" style="display:none"></select>
+      <select id="filter-shift" class="filter-select">
+        <option value="">All Shifts</option>
+        <option value="days">Days</option>
+        <option value="nights">Nights</option>
+        <option value="evenings">Evenings</option>
+        <option value="weekends">Weekends</option>
+        <option value="rotating">Rotating</option>
+        <option value="prn">PRN / Per Diem</option>
+      </select>
       <div class="radius-group">
         <input type="text" id="filter-zip" class="zip-input" placeholder="Zip code" maxlength="5" inputmode="numeric" pattern="[0-9]*">
         <select id="filter-radius" class="filter-select radius-select">
@@ -1106,6 +1144,15 @@ def _generate_homepage(list_jobs: list[dict]):
         <option value="midwife">Midwife</option>
         <option value="educator">Nurse Educator</option>
         <option value="telehealth">Telehealth / Remote</option>
+      </select>
+      <select id="filter-shift" class="filter-select">
+        <option value="">All Shifts</option>
+        <option value="days">Days</option>
+        <option value="nights">Nights</option>
+        <option value="evenings">Evenings</option>
+        <option value="weekends">Weekends</option>
+        <option value="rotating">Rotating</option>
+        <option value="prn">PRN / Per Diem</option>
       </select>
       <div class="radius-group">
         <input type="text" id="filter-zip" class="zip-input" placeholder="Zip code" maxlength="5" inputmode="numeric" pattern="[0-9]*">
