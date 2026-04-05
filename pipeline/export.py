@@ -284,6 +284,29 @@ def _build_list_entry(job: dict) -> dict:
 # Pre-render job rows as static HTML
 # ---------------------------------------------------------------------------
 
+def _interleave_by_company(jobs: list[dict]) -> list[dict]:
+    """Round-robin across companies so no single employer dominates the list."""
+    by_company: dict[str, list] = {}
+    for j in jobs:
+        key = j.get("company_name") or "unknown"
+        by_company.setdefault(key, []).append(j)
+
+    # Sort groups by newest job
+    groups = sorted(by_company.values(), key=lambda g: g[0].get("posted_date") or "", reverse=True)
+
+    result = []
+    rnd = 0
+    added = True
+    while added:
+        added = False
+        for group in groups:
+            if rnd < len(group):
+                result.append(group[rnd])
+                added = True
+        rnd += 1
+    return result
+
+
 def _render_job_rows_html(jobs: list[dict], limit: int = 25) -> str:
     """Render job list rows as static HTML for SEO."""
     rows = []
@@ -1102,7 +1125,7 @@ def _generate_homepage(list_jobs: list[dict]):
         key=lambda x: -x[2],
     )[:20]
 
-    pre_rendered = _render_job_rows_html(list_jobs)
+    pre_rendered = _render_job_rows_html(_interleave_by_company(list_jobs))
     hub_roles = _build_hub_section_html("Browse by Role", role_links)
     hub_metros = _build_hub_section_html("Browse by Metro Area", metro_links)
     hub_states = _build_hub_section_html("Browse by State", state_links[:20])
