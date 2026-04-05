@@ -1,5 +1,4 @@
-export async function onRequest(context) {
-  const html = `<!DOCTYPE html>
+const JOB_PAGE_HTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -30,7 +29,18 @@ export async function onRequest(context) {
 </body>
 </html>`;
 
-  return new Response(html, {
-    headers: { "Content-Type": "text/html;charset=UTF-8" },
-  });
-}
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+
+    // Serve job detail page for /listing/* paths
+    if (url.pathname.startsWith("/listing/")) {
+      return new Response(JOB_PAGE_HTML, {
+        headers: { "Content-Type": "text/html;charset=UTF-8" },
+      });
+    }
+
+    // Everything else: pass through to static assets
+    return env.ASSETS.fetch(request);
+  },
+};
