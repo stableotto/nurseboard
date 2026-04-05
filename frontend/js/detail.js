@@ -5,9 +5,9 @@ import { formatDate } from "./time.js";
 import { formatSalary, companyColor } from "./filters.js";
 
 export async function renderDetail(container) {
-  // Parse slug from path: /job/at/company/title-hash/
+  // Parse slug from path: /listing/at/company/title-hash/
   const path = window.location.pathname;
-  const slug = path.replace(/^\/job\//, "").replace(/\/$/, "");
+  const slug = path.replace(/^\/listing\//, "").replace(/\/$/, "");
 
   if (!slug) {
     container.innerHTML = '<div class="empty-state">Job not found.</div>';
