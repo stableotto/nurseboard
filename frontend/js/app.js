@@ -21,7 +21,6 @@ async function initListPage() {
   const zipInput = document.getElementById("filter-zip");
   const radiusSelect = document.getElementById("filter-radius");
   const salaryToggle = document.getElementById("filter-salary");
-  const recruiterToggle = document.getElementById("filter-recruiter");
 
   // Determine data path — category pages may be nested deeper
   const scripts = document.querySelectorAll("script[src*='app.js']");
@@ -101,7 +100,6 @@ async function initListPage() {
       state: stateSelect ? stateSelect.value : "",
       metro: metroSelect ? metroSelect.value : "",
       hasSalary: salaryToggle ? salaryToggle.checked : false,
-      hideRecruiters: recruiterToggle ? recruiterToggle.checked : false,
     });
 
     // Apply radius filter if zip + radius are set
@@ -116,7 +114,7 @@ async function initListPage() {
     }
 
     if (countEl) {
-      countEl.textContent = `${filtered.length} nursing job${filtered.length !== 1 ? "s" : ""}`;
+      countEl.textContent = `${filtered.length.toLocaleString()} nursing job${filtered.length !== 1 ? "s" : ""}`;
     }
     renderJobList(filtered, currentPage, container);
     if (paginationEl) {
@@ -192,7 +190,7 @@ async function initListPage() {
     if (el) el.addEventListener("change", () => { currentPage = 1; render(); });
   });
 
-  [salaryToggle, recruiterToggle].forEach((el) => {
+  [salaryToggle].forEach((el) => {
     if (el) el.addEventListener("change", () => { currentPage = 1; render(); });
   });
 

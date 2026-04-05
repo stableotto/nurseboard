@@ -379,9 +379,18 @@ a { color: inherit; text-decoration: none; }
   line-height: 1.7;
   font-size: 15px;
 }
-.description, .description * {
+.description, .description *,
+.description span, .description p,
+.description div, .description li,
+.description td, .description th,
+.description b, .description strong,
+.description i, .description em,
+.description a, .description h1,
+.description h2, .description h3,
+.description h4, .description h5 {
   font-family: var(--font) !important;
-  font-size: inherit;
+  font-size: inherit !important;
+  line-height: inherit !important;
 }
 .description h1, .description h2, .description h3, .description h4 {
   margin-top: 24px;

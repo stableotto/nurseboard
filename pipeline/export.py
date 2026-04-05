@@ -123,26 +123,43 @@ def _normalize_location(location: str | None) -> str | None:
     return loc if loc else None
 
 
+_SALARY_CONTEXT_RE = re.compile(
+    r"(?:salary|pay\s*(?:range)?|compensation|hourly\s*rate|wage|starting\s*at|range)[:\s]*"
+    r"\$\s*([\d,]+(?:\.\d{2})?)\s*(?:[-\u2013/]|to)\s*\$\s*([\d,]+(?:\.\d{2})?)",
+    re.IGNORECASE,
+)
+
+
 def _extract_salary_from_description(desc_plain: str | None, existing_min, existing_max) -> tuple:
     """Extract salary from description text if not already present."""
     if existing_min is not None or not desc_plain:
         return existing_min, existing_max
 
-    m = _DESC_SALARY_RE.search(desc_plain)
+    # Try contextual match first (salary/pay/compensation keyword nearby)
+    m = _SALARY_CONTEXT_RE.search(desc_plain)
+    if not m:
+        # Fall back to generic range but require reasonable values
+        m = _DESC_SALARY_RE.search(desc_plain)
+
     if not m:
         return None, None
 
     low = float(m.group(1).replace(",", ""))
     high = float(m.group(2).replace(",", ""))
 
-    # Check if hourly
-    context = desc_plain[max(0, m.start() - 20):m.end() + 30]
-    if _HOURLY_RE.search(context):
+    # Check if hourly (look at context around the match)
+    context = desc_plain[max(0, m.start() - 30):m.end() + 40]
+    is_hourly = _HOURLY_RE.search(context) or (low < 200 and high < 200)
+
+    if is_hourly and low >= 10 and high <= 200:
         low *= 2080
         high *= 2080
+    elif low < 15000:
+        # Too low for annual, probably not a salary
+        return None, None
 
-    # Sanity check: ignore if values seem wrong
-    if low < 10 or high > 10_000_000 or low > high:
+    # Sanity: annual salary should be between $15K and $500K
+    if low < 15000 or high > 500000 or low > high:
         return None, None
 
     return int(low * 100), int(high * 100)
@@ -601,12 +618,9 @@ def _category_page_html(heading: str, description: str, meta_desc: str,
       <label class="filter-toggle">
         <input type="checkbox" id="filter-salary"> Has Salary
       </label>
-      <label class="filter-toggle">
-        <input type="checkbox" id="filter-recruiter"> Hide Recruiters
-      </label>
     </div>
 
-    <div id="result-count" class="result-count">{count} job{"s" if count != 1 else ""}</div>
+    <div id="result-count" class="result-count">{count:,} job{"s" if count != 1 else ""}</div>
 
     <div id="job-list" class="job-list">
 {pre_rendered}
@@ -1101,7 +1115,7 @@ def _generate_homepage(list_jobs: list[dict]):
         js_path="js",
         data_path="data",
         body=f'''    <section class="hero">
-      <p class="hero-eyebrow">Updated daily from 600+ companies.</p>
+      <p class="hero-eyebrow">Updated daily.</p>
       <div class="hero-content">
         <h1>Nursing jobs.<br>Direct from the employer.</h1>
         <p class="hero-blurb">Every job here links straight to the employer's career page. No recruiters, no staffing agencies, no middlemen. We scan thousands of company career pages daily so you can skip the noise and apply directly.</p>
@@ -1152,12 +1166,9 @@ def _generate_homepage(list_jobs: list[dict]):
       <label class="filter-toggle">
         <input type="checkbox" id="filter-salary"> Has Salary
       </label>
-      <label class="filter-toggle">
-        <input type="checkbox" id="filter-recruiter"> Hide Recruiters
-      </label>
     </div>
 
-    <div id="result-count" class="result-count">{len(list_jobs)} nursing jobs</div>
+    <div id="result-count" class="result-count">{len(list_jobs):,} nursing jobs</div>
 
     <div id="job-list" class="job-list">
 {pre_rendered}
