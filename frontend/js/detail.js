@@ -5,54 +5,28 @@ import { formatDate } from "./time.js";
 import { formatSalary, companyColor } from "./filters.js";
 
 export async function renderDetail(container) {
-  // Support both /job/{slug}/ path and ?id= query param
-  let id = null;
-  let slug = null;
-  const path = window.location.pathname;
-  if (path.startsWith("/job/")) {
-    slug = path.replace(/^\/job\//, "").replace(/\/$/, "");
-  }
   const params = new URLSearchParams(window.location.search);
-  id = params.get("id");
-
-  if (!id && !slug) {
+  const id = params.get("id");
+  if (!id) {
     container.innerHTML = '<div class="empty-state">Job not found.</div>';
     return;
   }
 
+  const prefix = id.substring(0, 2);
   container.innerHTML = '<div class="loading">Loading job details...</div>';
 
-  // Load from jobs.json and find by slug or id
   let job = null;
+  try {
+    const resp = await fetch(`/data/jobs/${prefix}/${id}.json`);
+    if (resp.ok) job = await resp.json();
+  } catch {}
 
-  // Try by id first (detail JSON file)
-  if (id) {
-    const prefix = id.substring(0, 2);
-    try {
-      const resp = await fetch(`/data/jobs/${prefix}/${id}.json`);
-      if (resp.ok) job = await resp.json();
-    } catch {}
-  }
-
-  // Fall back to jobs.json — search by slug or id
   if (!job) {
     try {
       const listResp = await fetch("/data/jobs.json");
       if (listResp.ok) {
         const allJobs = await listResp.json();
-        if (slug) {
-          job = allJobs.find((j) => j.slug === slug);
-          if (job) {
-            // Now load the detail file for full description
-            const prefix = job.id.substring(0, 2);
-            try {
-              const detResp = await fetch(`/data/jobs/${prefix}/${job.id}.json`);
-              if (detResp.ok) job = await detResp.json();
-            } catch {}
-          }
-        } else {
-          job = allJobs.find((j) => j.id === id);
-        }
+        job = allJobs.find((j) => j.id === id);
       }
     } catch {}
   }

@@ -4,10 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ScrubShifts - Nursing Jobs Aggregated Daily from 500+ Employers</title>
-  <meta name="description" content="Browse 1280 nursing jobs aggregated daily from top healthcare employers. RN, LPN, CNA, NP, travel nurse, and more. Salary data and direct application links.">
+  <meta name="description" content="Browse 1229 nursing jobs aggregated daily from top healthcare employers. RN, LPN, CNA, NP, travel nurse, and more. Salary data and direct application links.">
   <link rel="canonical" href="https://scrubshifts.pages.dev/">
   <meta property="og:title" content="ScrubShifts - Nursing Jobs Aggregated Daily from 500+ Employers">
-  <meta property="og:description" content="Browse 1280 nursing jobs aggregated daily from top healthcare employers. RN, LPN, CNA, NP, travel nurse, and more. Salary data and direct application links.">
+  <meta property="og:description" content="Browse 1229 nursing jobs aggregated daily from top healthcare employers. RN, LPN, CNA, NP, travel nurse, and more. Salary data and direct application links.">
   <meta property="og:url" content="https://scrubshifts.pages.dev/">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="ScrubShifts">
@@ -18,13 +18,21 @@
 <body>
   <header class="header">
     <div class="container">
-      <a href="/" class="logo">ScrubShifts</a>
-      <span class="tagline">Nursing jobs, aggregated daily</span>
+      <div class="header-left">
+        <a href="/" class="logo">ScrubShifts</a>
+        <nav class="header-nav">
+          <a href="/jobs/rn/">RN Jobs</a>
+          <a href="/jobs/nurse-practitioner/">NP Jobs</a>
+          <a href="/jobs/cna/">CNA Jobs</a>
+          <a href="/jobs/lpn/">LPN Jobs</a>
+          <a href="/jobs/nursing-with-salary/">With Salary</a>
+        </nav>
+      </div>
     </div>
   </header>
   <main class="container">
     <section class="hero">
-      <p class="hero-eyebrow">Updated daily from 121+ companies.</p>
+      <p class="hero-eyebrow">Updated daily from 600+ companies.</p>
       <div class="hero-content">
         <h1>Nursing jobs.<br>Direct from the employer.</h1>
         <p class="hero-blurb">Every job here links straight to the employer's career page. No recruiters, no staffing agencies, no middlemen. We scan thousands of company career pages daily so you can skip the noise and apply directly.</p>
@@ -59,6 +67,16 @@
         <option value="educator">Nurse Educator</option>
         <option value="telehealth">Telehealth / Remote</option>
       </select>
+      <div class="radius-group">
+        <input type="text" id="filter-zip" class="zip-input" placeholder="Zip code" maxlength="5" inputmode="numeric" pattern="[0-9]*">
+        <select id="filter-radius" class="filter-select radius-select">
+          <option value="">Radius</option>
+          <option value="10">10 mi</option>
+          <option value="25">25 mi</option>
+          <option value="50">50 mi</option>
+          <option value="100">100 mi</option>
+        </select>
+      </div>
       <select id="filter-state" class="filter-select">
         <option value="">All States</option>
       </select>
@@ -70,10 +88,10 @@
       </label>
     </div>
 
-    <div id="result-count" class="result-count">1280 nursing jobs</div>
+    <div id="result-count" class="result-count">1229 nursing jobs</div>
 
     <div id="job-list" class="job-list">
-<a class="job-row" href="/jobs/at/seven-starling/psychiatric-mental-health-nurse-practitioner-pmhnp-women-s-health-oklahoma-resid-90f80c/">
+<a class="job-row" href="/job.html?id=90f80cf87f8b">
   <div class="company-avatar" style="background:#06b6d4">S</div>
   <div class="job-info">
     <div class="job-title">Psychiatric Mental Health Nurse Practitioner (PMHNP) - Women&#x27;s Health - Oklahoma resident/licensed</div>
@@ -81,10 +99,10 @@
   </div>
   <div class="job-right">
     <div class="job-location">Oklahoma, OK</div>
-    <div class="job-time">4d ago</div>
+    <div class="job-time">7d ago</div>
   </div>
 </a>
-<a class="job-row" href="/jobs/at/transcarent/team-lead-registered-nurse-expert-medical-opinion-us-remote-0be9d3/">
+<a class="job-row" href="/job.html?id=0be9d31e0ea6">
   <div class="company-avatar" style="background:#e11d48">T</div>
   <div class="job-info">
     <div class="job-title">Team Lead, Registered Nurse, Expert Medical Opinion</div>
@@ -92,21 +110,21 @@
   </div>
   <div class="job-right">
     <div class="job-location">US - Remote</div>
-    <div class="job-time">4d ago</div>
+    <div class="job-time">7d ago</div>
   </div>
 </a>
-<a class="job-row" href="/jobs/at/heyrowan/piercing-studio-nurse-new-orleans-la-5c5490/">
-  <div class="company-avatar" style="background:#e11d48">H</div>
+<a class="job-row" href="/job.html?id=5c5490ecef2f">
+  <div class="company-avatar" style="background:#f43f5e">R</div>
   <div class="job-info">
     <div class="job-title">Piercing Studio Nurse</div>
-    <div class="job-meta">Heyrowan</div>
+    <div class="job-meta">Rowan</div>
   </div>
   <div class="job-right">
     <div class="job-location">New Orleans, LA</div>
-    <div class="job-time">5d ago</div>
+    <div class="job-time">7d ago</div>
   </div>
 </a>
-<a class="job-row" href="/jobs/at/lifestance-health/psychiatric-nurse-practitioner-outpatient-hybrid-grove-city-oh-36657c/">
+<a class="job-row" href="/job.html?id=36657cab5fed">
   <div class="company-avatar" style="background:#6366f1">L</div>
   <div class="job-info">
     <div class="job-title">Psychiatric Nurse Practitioner - Outpatient - hybrid</div>
@@ -114,21 +132,21 @@
   </div>
   <div class="job-right">
     <div class="job-location">Grove City, OH</div>
-    <div class="job-time">5d ago</div>
+    <div class="job-time">7d ago</div>
   </div>
 </a>
-<a class="job-row" href="/jobs/at/heyrowan/piercing-studio-nurse-bridgewater-nj-34d94b/">
-  <div class="company-avatar" style="background:#e11d48">H</div>
+<a class="job-row" href="/job.html?id=34d94ba27453">
+  <div class="company-avatar" style="background:#f43f5e">R</div>
   <div class="job-info">
     <div class="job-title">Piercing Studio Nurse</div>
-    <div class="job-meta">Heyrowan</div>
+    <div class="job-meta">Rowan</div>
   </div>
   <div class="job-right">
     <div class="job-location">Bridgewater, NJ</div>
-    <div class="job-time">5d ago</div>
+    <div class="job-time">7d ago</div>
   </div>
 </a>
-<a class="job-row" href="/jobs/at/lifestance-health/psychiatric-nurse-practitioner-outpatient-hybrid-avon-oh-be82e0/">
+<a class="job-row" href="/job.html?id=be82e093ca8a">
   <div class="company-avatar" style="background:#6366f1">L</div>
   <div class="job-info">
     <div class="job-title">Psychiatric Nurse Practitioner - Outpatient - Hybrid</div>
@@ -136,10 +154,10 @@
   </div>
   <div class="job-right">
     <div class="job-location">Avon, OH</div>
-    <div class="job-time">5d ago</div>
+    <div class="job-time">7d ago</div>
   </div>
 </a>
-<a class="job-row" href="/jobs/at/included-health/nurse-care-manager-adult-washington-3d9ccd/">
+<a class="job-row" href="/job.html?id=3d9ccd25e485">
   <div class="company-avatar" style="background:#f97316">I</div>
   <div class="job-info">
     <div class="job-title">Nurse Care Manager, Adult</div>
@@ -147,10 +165,10 @@
   </div>
   <div class="job-right">
     <div class="job-location">Washington</div>
-    <div class="job-time">5d ago</div>
+    <div class="job-time">7d ago</div>
   </div>
 </a>
-<a class="job-row" href="/jobs/at/included-health/nurse-care-manager-adult-denver-co-3bd0ef/">
+<a class="job-row" href="/job.html?id=3bd0ef26b7c6">
   <div class="company-avatar" style="background:#f97316">I</div>
   <div class="job-info">
     <div class="job-title">Nurse Care Manager, Adult</div>
@@ -158,98 +176,98 @@
   </div>
   <div class="job-right">
     <div class="job-location">Denver, CO</div>
-    <div class="job-time">5d ago</div>
+    <div class="job-time">7d ago</div>
   </div>
 </a>
-<a class="job-row" href="/jobs/at/sonobello/registered-nurse-outpatient-surgery-co-denver-contour-1f8033/">
-  <div class="company-avatar" style="background:#e11d48">S</div>
+<a class="job-row" href="/job.html?id=1f8033902a1b">
+  <div class="company-avatar" style="background:#eab308">S</div>
   <div class="job-info">
     <div class="job-title">Registered Nurse - Outpatient Surgery</div>
-    <div class="job-meta">Sonobello &middot; <span class="salary">$42 - $53</span></div>
+    <div class="job-meta">Sono Bello &middot; <span class="salary">$42 - $53</span></div>
   </div>
   <div class="job-right">
     <div class="job-location">CO - Denver Contour</div>
-    <div class="job-time">4d ago</div>
+    <div class="job-time">7d ago</div>
   </div>
 </a>
-<a class="job-row" href="/jobs/at/solmental-health/psychiatric-nurse-practitioner-411-theodore-fremd-ave-rye-ny-10580-6ec3dd/">
+<a class="job-row" href="/job.html?id=6ec3ddf8acde">
   <div class="company-avatar" style="background:#14b8a6">S</div>
   <div class="job-info">
     <div class="job-title">Psychiatric Nurse Practitioner</div>
-    <div class="job-meta">Solmental Health</div>
+    <div class="job-meta">Solmental Health &middot; <span class="salary">$150k - $190k</span></div>
   </div>
   <div class="job-right">
-    <div class="job-location">411 Theodore Fremd Ave Rye, NY 10580</div>
-    <div class="job-time">5d ago</div>
+    <div class="job-location">Theodore Fremd Ave Rye, NY</div>
+    <div class="job-time">7d ago</div>
   </div>
 </a>
-<a class="job-row" href="/jobs/at/solmental-health/psychiatric-nurse-practitioner-1129-northern-blvd-suite-404-manhasset-ny-11030-730e12/">
+<a class="job-row" href="/job.html?id=730e1253700e">
   <div class="company-avatar" style="background:#14b8a6">S</div>
   <div class="job-info">
     <div class="job-title">Psychiatric Nurse Practitioner</div>
-    <div class="job-meta">Solmental Health</div>
+    <div class="job-meta">Solmental Health &middot; <span class="salary">$150k - $190k</span></div>
   </div>
   <div class="job-right">
-    <div class="job-location">1129 Northern Blvd Suite 404, Manhasset, NY 11030</div>
-    <div class="job-time">5d ago</div>
+    <div class="job-location">Manhasset, NY</div>
+    <div class="job-time">7d ago</div>
   </div>
 </a>
-<a class="job-row" href="/jobs/at/solmental-health/psychiatric-nurse-practitioner-8000-towers-crescent-dr-floor-13-vienna-va-22182-6c1cc9/">
+<a class="job-row" href="/job.html?id=6c1cc9cd3d0b">
   <div class="company-avatar" style="background:#14b8a6">S</div>
   <div class="job-info">
     <div class="job-title">Psychiatric Nurse Practitioner</div>
-    <div class="job-meta">Solmental Health</div>
+    <div class="job-meta">Solmental Health &middot; <span class="salary">$150k - $190k</span></div>
   </div>
   <div class="job-right">
-    <div class="job-location">8000 Towers Crescent Dr floor 13, Vienna, VA 22182</div>
-    <div class="job-time">5d ago</div>
+    <div class="job-location">Vienna, VA</div>
+    <div class="job-time">7d ago</div>
   </div>
 </a>
-<a class="job-row" href="/jobs/at/solmental-health/psychiatric-nurse-practitioner-9711-washingtonian-blvd-suite-550-gaithersburg-md-48f46f/">
+<a class="job-row" href="/job.html?id=48f46ff92f78">
   <div class="company-avatar" style="background:#14b8a6">S</div>
   <div class="job-info">
     <div class="job-title">Psychiatric Nurse Practitioner</div>
-    <div class="job-meta">Solmental Health</div>
+    <div class="job-meta">Solmental Health &middot; <span class="salary">$150k - $190k</span></div>
   </div>
   <div class="job-right">
-    <div class="job-location">9711 Washingtonian Blvd Suite: 550, Gaithersburg, MD 20878</div>
-    <div class="job-time">5d ago</div>
+    <div class="job-location">Gaithersburg, MD</div>
+    <div class="job-time">7d ago</div>
   </div>
 </a>
-<a class="job-row" href="/jobs/at/solmental-health/psychiatric-nurse-practitioner-4250-fairfax-dr-suite-600-arlington-va-22201-4fd94b/">
+<a class="job-row" href="/job.html?id=4fd94b1bd1bb">
   <div class="company-avatar" style="background:#14b8a6">S</div>
   <div class="job-info">
     <div class="job-title">Psychiatric Nurse Practitioner</div>
-    <div class="job-meta">Solmental Health</div>
+    <div class="job-meta">Solmental Health &middot; <span class="salary">$150k - $190k</span></div>
   </div>
   <div class="job-right">
-    <div class="job-location">4250 Fairfax Dr Suite 600, Arlington, VA 22201</div>
-    <div class="job-time">5d ago</div>
+    <div class="job-location">Arlington, VA</div>
+    <div class="job-time">7d ago</div>
   </div>
 </a>
-<a class="job-row" href="/jobs/at/solmental-health/psychiatric-nurse-practitioner-1300-i-st-nw-suite-400e-466-washington-dc-20005-34369b/">
+<a class="job-row" href="/job.html?id=34369b3a6455">
   <div class="company-avatar" style="background:#14b8a6">S</div>
   <div class="job-info">
     <div class="job-title">Psychiatric Nurse Practitioner</div>
-    <div class="job-meta">Solmental Health</div>
+    <div class="job-meta">Solmental Health &middot; <span class="salary">$150k - $190k</span></div>
   </div>
   <div class="job-right">
-    <div class="job-location">1300 I St NW Suite 400E (466), Washington, DC 20005</div>
-    <div class="job-time">5d ago</div>
+    <div class="job-location">Washington, DC</div>
+    <div class="job-time">7d ago</div>
   </div>
 </a>
-<a class="job-row" href="/jobs/at/vailclinicincdbavailhealth-hospital/registered-nurse-preop-pacu-night-shift-vail-colorado-united-states-489ea8/">
+<a class="job-row" href="/job.html?id=489ea81b4d64">
   <div class="company-avatar" style="background:#eab308">V</div>
   <div class="job-info">
     <div class="job-title">Registered Nurse PreOp/PACU - Night Shift</div>
     <div class="job-meta">Vailclinicincdbavailhealth Hospital &middot; <span class="salary">$38 - $60</span></div>
   </div>
   <div class="job-right">
-    <div class="job-location">Vail, Colorado, United States</div>
-    <div class="job-time">5d ago</div>
+    <div class="job-location">Vail, CO</div>
+    <div class="job-time">7d ago</div>
   </div>
 </a>
-<a class="job-row" href="/jobs/at/lifestance-health/psychiatric-nurse-practitioner-pmhnp-portland-me-21320b/">
+<a class="job-row" href="/job.html?id=21320b1fa499">
   <div class="company-avatar" style="background:#6366f1">L</div>
   <div class="job-info">
     <div class="job-title">Psychiatric Nurse Practitioner (PMHNP)</div>
@@ -257,10 +275,10 @@
   </div>
   <div class="job-right">
     <div class="job-location">Portland, ME</div>
-    <div class="job-time">5d ago</div>
+    <div class="job-time">7d ago</div>
   </div>
 </a>
-<a class="job-row" href="/jobs/at/lifestance-health/psychiatric-nurse-practitioner-pmhnp-south-portland-me-4c33bd/">
+<a class="job-row" href="/job.html?id=4c33bd9daeac">
   <div class="company-avatar" style="background:#6366f1">L</div>
   <div class="job-info">
     <div class="job-title">Psychiatric Nurse Practitioner (PMHNP)</div>
@@ -268,10 +286,10 @@
   </div>
   <div class="job-right">
     <div class="job-location">South Portland, ME</div>
-    <div class="job-time">5d ago</div>
+    <div class="job-time">8d ago</div>
   </div>
 </a>
-<a class="job-row" href="/jobs/at/lifestance-health/psychiatric-nurse-practitioner-pmhnp-brunswick-me-43d7a2/">
+<a class="job-row" href="/job.html?id=43d7a21c368e">
   <div class="company-avatar" style="background:#6366f1">L</div>
   <div class="job-info">
     <div class="job-title">Psychiatric Nurse Practitioner (PMHNP)</div>
@@ -279,10 +297,10 @@
   </div>
   <div class="job-right">
     <div class="job-location">Brunswick, ME</div>
-    <div class="job-time">5d ago</div>
+    <div class="job-time">8d ago</div>
   </div>
 </a>
-<a class="job-row" href="/jobs/at/lifestance-health/psychiatric-nurse-practitioner-pmhnp-scarborough-me-4e1425/">
+<a class="job-row" href="/job.html?id=4e1425322d8f">
   <div class="company-avatar" style="background:#6366f1">L</div>
   <div class="job-info">
     <div class="job-title">Psychiatric Nurse Practitioner (PMHNP)</div>
@@ -290,71 +308,123 @@
   </div>
   <div class="job-right">
     <div class="job-location">Scarborough, ME</div>
-    <div class="job-time">5d ago</div>
+    <div class="job-time">8d ago</div>
   </div>
 </a>
-<a class="job-row" href="/jobs/at/sonobello/registered-nurse-operating-room-circulator-tx-san-antonio-fe75d3/">
-  <div class="company-avatar" style="background:#e11d48">S</div>
+<a class="job-row" href="/job.html?id=fe75d3e9bc4e">
+  <div class="company-avatar" style="background:#eab308">S</div>
   <div class="job-info">
     <div class="job-title">Registered Nurse - Operating Room Circulator </div>
-    <div class="job-meta">Sonobello</div>
+    <div class="job-meta">Sono Bello</div>
   </div>
   <div class="job-right">
     <div class="job-location">TX - San Antonio</div>
-    <div class="job-time">5d ago</div>
+    <div class="job-time">7d ago</div>
   </div>
 </a>
-<a class="job-row" href="/jobs/at/sonobello/registered-nurse-pre-op-pacu-tx-san-antonio-967164/">
-  <div class="company-avatar" style="background:#e11d48">S</div>
+<a class="job-row" href="/job.html?id=967164bfddf1">
+  <div class="company-avatar" style="background:#eab308">S</div>
   <div class="job-info">
     <div class="job-title">Registered Nurse - Pre-Op/PACU </div>
-    <div class="job-meta">Sonobello</div>
+    <div class="job-meta">Sono Bello</div>
   </div>
   <div class="job-right">
     <div class="job-location">TX - San Antonio</div>
-    <div class="job-time">5d ago</div>
+    <div class="job-time">7d ago</div>
   </div>
 </a>
-<a class="job-row" href="/jobs/at/heyrowan/piercing-studio-nurse-memphis-tn-f87896/">
-  <div class="company-avatar" style="background:#e11d48">H</div>
+<a class="job-row" href="/job.html?id=f878969f1bfa">
+  <div class="company-avatar" style="background:#f43f5e">R</div>
   <div class="job-info">
     <div class="job-title">Piercing Studio Nurse</div>
-    <div class="job-meta">Heyrowan</div>
+    <div class="job-meta">Rowan</div>
   </div>
   <div class="job-right">
     <div class="job-location">Memphis, TN</div>
-    <div class="job-time">5d ago</div>
+    <div class="job-time">8d ago</div>
   </div>
 </a>
-<a class="job-row" href="/jobs/at/heyrowan/piercing-studio-nurse-san-jose-ca-cc832c/">
-  <div class="company-avatar" style="background:#e11d48">H</div>
+<a class="job-row" href="/job.html?id=cc832c115c11">
+  <div class="company-avatar" style="background:#f43f5e">R</div>
   <div class="job-info">
     <div class="job-title">Piercing Studio Nurse</div>
-    <div class="job-meta">Heyrowan</div>
+    <div class="job-meta">Rowan</div>
   </div>
   <div class="job-right">
     <div class="job-location">San Jose, CA</div>
-    <div class="job-time">5d ago</div>
+    <div class="job-time">8d ago</div>
   </div>
 </a>
-<a class="job-row" href="/jobs/at/heyrowan/piercing-studio-nurse-madison-wi-8a8bbd/">
-  <div class="company-avatar" style="background:#e11d48">H</div>
+<a class="job-row" href="/job.html?id=8a8bbd2c4923">
+  <div class="company-avatar" style="background:#f43f5e">R</div>
   <div class="job-info">
     <div class="job-title">Piercing Studio Nurse</div>
-    <div class="job-meta">Heyrowan</div>
+    <div class="job-meta">Rowan</div>
   </div>
   <div class="job-right">
     <div class="job-location">Madison, WI</div>
-    <div class="job-time">5d ago</div>
+    <div class="job-time">8d ago</div>
   </div>
 </a>
     </div>
     <div id="pagination" class="pagination"></div>
 
-    <section class="hub-section"><h2>Browse by Role</h2><div class="hub-links"><a class="hub-link" href="/jobs/rn/">Registered Nurse <span class="count">404</span></a><a class="hub-link" href="/jobs/lpn/">Licensed Practical Nurse <span class="count">81</span></a><a class="hub-link" href="/jobs/lvn/">Licensed Vocational Nurse <span class="count">31</span></a><a class="hub-link" href="/jobs/cna/">Certified Nursing Assistant <span class="count">37</span></a><a class="hub-link" href="/jobs/nurse-practitioner/">Nurse Practitioner <span class="count">465</span></a><a class="hub-link" href="/jobs/case-manager/">Case Manager <span class="count">22</span></a><a class="hub-link" href="/jobs/icu-nurse/">ICU Nurse <span class="count">42</span></a><a class="hub-link" href="/jobs/er-nurse/">ER Nurse <span class="count">59</span></a><a class="hub-link" href="/jobs/or-nurse/">OR Nurse <span class="count">42</span></a><a class="hub-link" href="/jobs/nicu-nurse/">NICU Nurse <span class="count">10</span></a><a class="hub-link" href="/jobs/pacu-nurse/">PACU Nurse <span class="count">10</span></a><a class="hub-link" href="/jobs/med-surg/">Med-Surg Nurse <span class="count">21</span></a><a class="hub-link" href="/jobs/oncology-nurse/">Oncology Nurse <span class="count">16</span></a><a class="hub-link" href="/jobs/pediatric-nurse/">Pediatric Nurse <span class="count">19</span></a><a class="hub-link" href="/jobs/psychiatric-nurse/">Psychiatric Nurse <span class="count">40</span></a><a class="hub-link" href="/jobs/labor-delivery/">Labor &amp; Delivery Nurse <span class="count">7</span></a><a class="hub-link" href="/jobs/home-health/">Home Health Nurse <span class="count">11</span></a><a class="hub-link" href="/jobs/remote-nurse/">Remote Nursing <span class="count">16</span></a><a class="hub-link" href="/jobs/charge-nurse/">Charge Nurse <span class="count">3</span></a><a class="hub-link" href="/jobs/nurse-manager/">Nurse Manager <span class="count">51</span></a><a class="hub-link" href="/jobs/clinical-nurse/">Clinical Nurse <span class="count">13</span></a><a class="hub-link" href="/jobs/crna/">Nurse Anesthetist <span class="count">3</span></a><a class="hub-link" href="/jobs/midwife/">Midwife <span class="count">3</span></a><a class="hub-link" href="/jobs/night-shift/">Night Shift Nurse <span class="count">34</span></a><a class="hub-link" href="/jobs/per-diem/">Per Diem Nurse <span class="count">90</span></a><a class="hub-link" href="/jobs/part-time-nurse/">Part-Time Nurse <span class="count">78</span></a><a class="hub-link" href="/jobs/nursing-with-salary/">Nursing Jobs with Salary <span class="count">370</span></a></div></section>
-    <section class="hub-section"><h2>Browse by State</h2><div class="hub-links"><a class="hub-link" href="/jobs/california/">California <span class="count">77</span></a><a class="hub-link" href="/jobs/massachusetts/">Massachusetts <span class="count">77</span></a><a class="hub-link" href="/jobs/tennessee/">Tennessee <span class="count">68</span></a><a class="hub-link" href="/jobs/illinois/">Illinois <span class="count">55</span></a><a class="hub-link" href="/jobs/virginia/">Virginia <span class="count">21</span></a><a class="hub-link" href="/jobs/texas/">Texas <span class="count">18</span></a><a class="hub-link" href="/jobs/michigan/">Michigan <span class="count">18</span></a><a class="hub-link" href="/jobs/west-virginia/">West Virginia <span class="count">17</span></a><a class="hub-link" href="/jobs/indiana/">Indiana <span class="count">15</span></a><a class="hub-link" href="/jobs/utah/">Utah <span class="count">13</span></a><a class="hub-link" href="/jobs/missouri/">Missouri <span class="count">12</span></a><a class="hub-link" href="/jobs/north-carolina/">North Carolina <span class="count">10</span></a><a class="hub-link" href="/jobs/new-york/">New York <span class="count">9</span></a><a class="hub-link" href="/jobs/washington/">Washington <span class="count">9</span></a><a class="hub-link" href="/jobs/new-jersey/">New Jersey <span class="count">8</span></a><a class="hub-link" href="/jobs/florida/">Florida <span class="count">8</span></a><a class="hub-link" href="/jobs/rhode-island/">Rhode Island <span class="count">8</span></a><a class="hub-link" href="/jobs/ohio/">Ohio <span class="count">7</span></a><a class="hub-link" href="/jobs/colorado/">Colorado <span class="count">7</span></a><a class="hub-link" href="/jobs/kansas/">Kansas <span class="count">7</span></a></div></section>
-    <section class="hub-section"><h2>Top Employers</h2><div class="hub-links"><a class="hub-link" href="/jobs/at/lifestance-health/">LifeStance Health <span class="count">110</span></a><a class="hub-link" href="/jobs/at/wvu-medicine/">WVU Medicine <span class="count">108</span></a><a class="hub-link" href="/jobs/at/theoria-medical/">Theoria Medical <span class="count">75</span></a><a class="hub-link" href="/jobs/at/usc/">USC <span class="count">73</span></a><a class="hub-link" href="/jobs/at/ummh/">Ummh <span class="count">67</span></a><a class="hub-link" href="/jobs/at/veterinaryemergencygroupst/">Veterinaryemergencygroupst <span class="count">66</span></a><a class="hub-link" href="/jobs/at/vumc/">Vumc <span class="count">61</span></a><a class="hub-link" href="/jobs/at/talkspacepsychiatry/">Talkspacepsychiatry <span class="count">50</span></a><a class="hub-link" href="/jobs/at/wellstar/">Wellstar <span class="count">36</span></a><a class="hub-link" href="/jobs/at/valleyhealthlink/">Valleyhealthlink <span class="count">35</span></a><a class="hub-link" href="/jobs/at/heyrowan/">Heyrowan <span class="count">33</span></a><a class="hub-link" href="/jobs/at/vca/">Vca <span class="count">30</span></a><a class="hub-link" href="/jobs/at/wustl/">Wustl <span class="count">29</span></a><a class="hub-link" href="/jobs/at/vailclinicincdbavailhealth-hospital/">Vailclinicincdbavailhealth Hospital <span class="count">28</span></a><a class="hub-link" href="/jobs/at/arkos-health/">Arkos Health <span class="count">26</span></a><a class="hub-link" href="/jobs/at/sonobello/">Sonobello <span class="count">24</span></a><a class="hub-link" href="/jobs/at/everhome-healthcare/">Everhome Healthcare <span class="count">21</span></a><a class="hub-link" href="/jobs/at/animaltrust/">Animaltrust <span class="count">21</span></a><a class="hub-link" href="/jobs/at/thegialliancemanagementllccompany/">Thegialliancemanagementllccompany <span class="count">19</span></a><a class="hub-link" href="/jobs/at/skinlaundry/">Skinlaundry <span class="count">19</span></a><a class="hub-link" href="/jobs/at/strive-health/">Strive Health <span class="count">16</span></a><a class="hub-link" href="/jobs/at/welbe-health/">Welbe Health <span class="count">16</span></a><a class="hub-link" href="/jobs/at/twochairs/">Twochairs <span class="count">12</span></a><a class="hub-link" href="/jobs/at/upenn/">Upenn <span class="count">12</span></a></div></section>
+    <section class="hub-section"><h2>Browse by Role</h2><div class="hub-links"><a class="hub-link" href="/jobs/rn/">Registered Nurse <span class="count">383</span></a><a class="hub-link" href="/jobs/lpn/">Licensed Practical Nurse <span class="count">77</span></a><a class="hub-link" href="/jobs/lvn/">Licensed Vocational Nurse <span class="count">31</span></a><a class="hub-link" href="/jobs/cna/">Certified Nursing Assistant <span class="count">35</span></a><a class="hub-link" href="/jobs/nurse-practitioner/">Nurse Practitioner <span class="count">447</span></a><a class="hub-link" href="/jobs/case-manager/">Case Manager <span class="count">21</span></a><a class="hub-link" href="/jobs/icu-nurse/">ICU Nurse <span class="count">40</span></a><a class="hub-link" href="/jobs/er-nurse/">ER Nurse <span class="count">54</span></a><a class="hub-link" href="/jobs/or-nurse/">OR Nurse <span class="count">40</span></a><a class="hub-link" href="/jobs/nicu-nurse/">NICU Nurse <span class="count">8</span></a><a class="hub-link" href="/jobs/pacu-nurse/">PACU Nurse <span class="count">10</span></a><a class="hub-link" href="/jobs/med-surg/">Med-Surg Nurse <span class="count">16</span></a><a class="hub-link" href="/jobs/oncology-nurse/">Oncology Nurse <span class="count">13</span></a><a class="hub-link" href="/jobs/pediatric-nurse/">Pediatric Nurse <span class="count">19</span></a><a class="hub-link" href="/jobs/psychiatric-nurse/">Psychiatric Nurse <span class="count">33</span></a><a class="hub-link" href="/jobs/labor-delivery/">Labor &amp; Delivery Nurse <span class="count">7</span></a><a class="hub-link" href="/jobs/home-health/">Home Health Nurse <span class="count">10</span></a><a class="hub-link" href="/jobs/remote-nurse/">Remote Nursing <span class="count">16</span></a><a class="hub-link" href="/jobs/charge-nurse/">Charge Nurse <span class="count">3</span></a><a class="hub-link" href="/jobs/nurse-manager/">Nurse Manager <span class="count">48</span></a><a class="hub-link" href="/jobs/clinical-nurse/">Clinical Nurse <span class="count">12</span></a><a class="hub-link" href="/jobs/crna/">Nurse Anesthetist <span class="count">3</span></a><a class="hub-link" href="/jobs/midwife/">Midwife <span class="count">3</span></a><a class="hub-link" href="/jobs/night-shift/">Night Shift Nurse <span class="count">32</span></a><a class="hub-link" href="/jobs/per-diem/">Per Diem Nurse <span class="count">83</span></a><a class="hub-link" href="/jobs/part-time-nurse/">Part-Time Nurse <span class="count">77</span></a><a class="hub-link" href="/jobs/nursing-with-salary/">Nursing Jobs with Salary <span class="count">483</span></a></div></section>
+    <section class="hub-section"><h2>Browse by Metro Area</h2><div class="hub-links"><a class="hub-link" href="/jobs/metro/nashville/">Nashville <span class="count">60</span></a><a class="hub-link" href="/jobs/metro/boston/">Greater Boston <span class="count">53</span></a><a class="hub-link" href="/jobs/metro/los-angeles/">Los Angeles <span class="count">52</span></a><a class="hub-link" href="/jobs/metro/seattle/">Seattle <span class="count">23</span></a><a class="hub-link" href="/jobs/metro/san-francisco-bay-area/">San Francisco Bay Area <span class="count">14</span></a><a class="hub-link" href="/jobs/metro/nyc-metro/">New York City Metro <span class="count">14</span></a><a class="hub-link" href="/jobs/metro/chicago/">Chicago <span class="count">12</span></a><a class="hub-link" href="/jobs/metro/dc-metro/">Washington DC Metro <span class="count">9</span></a><a class="hub-link" href="/jobs/metro/memphis/">Memphis <span class="count">8</span></a><a class="hub-link" href="/jobs/metro/las-vegas/">Las Vegas <span class="count">8</span></a><a class="hub-link" href="/jobs/metro/houston/">Houston <span class="count">8</span></a><a class="hub-link" href="/jobs/metro/miami/">Miami <span class="count">7</span></a><a class="hub-link" href="/jobs/metro/san-diego/">San Diego <span class="count">7</span></a><a class="hub-link" href="/jobs/metro/austin/">Austin <span class="count">7</span></a><a class="hub-link" href="/jobs/metro/northern-nj/">Northern New Jersey <span class="count">6</span></a><a class="hub-link" href="/jobs/metro/dallas-fort-worth/">Dallas-Fort Worth <span class="count">6</span></a><a class="hub-link" href="/jobs/metro/salt-lake-city/">Salt Lake City <span class="count">6</span></a><a class="hub-link" href="/jobs/metro/raleigh-durham/">Raleigh-Durham <span class="count">5</span></a><a class="hub-link" href="/jobs/metro/indianapolis/">Indianapolis <span class="count">5</span></a><a class="hub-link" href="/jobs/metro/philadelphia/">Philadelphia <span class="count">5</span></a></div></section>
+    <section class="hub-section"><h2>Browse by State</h2><div class="hub-links"><a class="hub-link" href="/jobs/california/">California <span class="count">109</span></a><a class="hub-link" href="/jobs/massachusetts/">Massachusetts <span class="count">75</span></a><a class="hub-link" href="/jobs/tennessee/">Tennessee <span class="count">72</span></a><a class="hub-link" href="/jobs/illinois/">Illinois <span class="count">61</span></a><a class="hub-link" href="/jobs/new-york/">New York <span class="count">40</span></a><a class="hub-link" href="/jobs/texas/">Texas <span class="count">39</span></a><a class="hub-link" href="/jobs/washington/">Washington <span class="count">32</span></a><a class="hub-link" href="/jobs/colorado/">Colorado <span class="count">31</span></a><a class="hub-link" href="/jobs/virginia/">Virginia <span class="count">29</span></a><a class="hub-link" href="/jobs/kansas/">Kansas <span class="count">23</span></a><a class="hub-link" href="/jobs/florida/">Florida <span class="count">20</span></a><a class="hub-link" href="/jobs/north-carolina/">North Carolina <span class="count">20</span></a><a class="hub-link" href="/jobs/indiana/">Indiana <span class="count">20</span></a><a class="hub-link" href="/jobs/michigan/">Michigan <span class="count">20</span></a><a class="hub-link" href="/jobs/georgia/">Georgia <span class="count">19</span></a><a class="hub-link" href="/jobs/west-virginia/">West Virginia <span class="count">16</span></a><a class="hub-link" href="/jobs/new-jersey/">New Jersey <span class="count">14</span></a><a class="hub-link" href="/jobs/wyoming/">Wyoming <span class="count">14</span></a><a class="hub-link" href="/jobs/utah/">Utah <span class="count">13</span></a><a class="hub-link" href="/jobs/ohio/">Ohio <span class="count">12</span></a></div></section>
+    <section class="hub-section"><h2>Top Employers</h2><div class="hub-links"><a class="hub-link" href="/jobs/at/wvu-medicine/">WVU Medicine <span class="count">102</span></a><a class="hub-link" href="/jobs/at/lifestance-health/">LifeStance Health <span class="count">96</span></a><a class="hub-link" href="/jobs/at/theoria-medical/">Theoria Medical <span class="count">75</span></a><a class="hub-link" href="/jobs/at/usc/">USC <span class="count">68</span></a><a class="hub-link" href="/jobs/at/veterinary-emergency-group/">Veterinary Emergency Group <span class="count">66</span></a><a class="hub-link" href="/jobs/at/vanderbilt-university-medical-center/">Vanderbilt University Medical Center <span class="count">60</span></a><a class="hub-link" href="/jobs/at/umass-memorial-health/">UMass Memorial Health <span class="count">59</span></a><a class="hub-link" href="/jobs/at/talkspace/">Talkspace <span class="count">50</span></a><a class="hub-link" href="/jobs/at/wellstar-health-system/">Wellstar Health System <span class="count">34</span></a><a class="hub-link" href="/jobs/at/rowan/">Rowan <span class="count">33</span></a><a class="hub-link" href="/jobs/at/vca-animal-hospitals/">VCA Animal Hospitals <span class="count">29</span></a><a class="hub-link" href="/jobs/at/vailclinicincdbavailhealth-hospital/">Vailclinicincdbavailhealth Hospital <span class="count">28</span></a><a class="hub-link" href="/jobs/at/valley-health/">Valley Health <span class="count">28</span></a><a class="hub-link" href="/jobs/at/washington-university-in-st-louis/">Washington University in St. Louis <span class="count">27</span></a><a class="hub-link" href="/jobs/at/arkos-health/">Arkos Health <span class="count">26</span></a><a class="hub-link" href="/jobs/at/sono-bello/">Sono Bello <span class="count">24</span></a><a class="hub-link" href="/jobs/at/everhome-healthcare/">Everhome Healthcare <span class="count">21</span></a><a class="hub-link" href="/jobs/at/animal-trust/">Animal Trust <span class="count">21</span></a><a class="hub-link" href="/jobs/at/gi-alliance/">GI Alliance <span class="count">19</span></a><a class="hub-link" href="/jobs/at/skin-laundry/">Skin Laundry <span class="count">19</span></a><a class="hub-link" href="/jobs/at/strive-health/">Strive Health <span class="count">16</span></a><a class="hub-link" href="/jobs/at/welbe-health/">Welbe Health <span class="count">15</span></a><a class="hub-link" href="/jobs/at/two-chairs/">Two Chairs <span class="count">12</span></a><a class="hub-link" href="/jobs/at/ascension-recovery/">Ascension Recovery <span class="count">12</span></a></div></section>
   </main>
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <h4>By Role</h4>
+          <a href="/jobs/rn/">Registered Nurse</a>
+          <a href="/jobs/nurse-practitioner/">Nurse Practitioner</a>
+          <a href="/jobs/lpn/">LPN</a>
+          <a href="/jobs/lvn/">LVN</a>
+          <a href="/jobs/cna/">CNA</a>
+          <a href="/jobs/crna/">CRNA</a>
+          <a href="/jobs/case-manager/">Case Manager</a>
+          <a href="/jobs/nurse-manager/">Nurse Manager</a>
+        </div>
+        <div class="footer-col">
+          <h4>By Specialty</h4>
+          <a href="/jobs/icu-nurse/">ICU Nurse</a>
+          <a href="/jobs/er-nurse/">ER Nurse</a>
+          <a href="/jobs/or-nurse/">OR Nurse</a>
+          <a href="/jobs/med-surg/">Med-Surg</a>
+          <a href="/jobs/oncology-nurse/">Oncology</a>
+          <a href="/jobs/pediatric-nurse/">Pediatric</a>
+          <a href="/jobs/psychiatric-nurse/">Psychiatric</a>
+          <a href="/jobs/home-health/">Home Health</a>
+        </div>
+        <div class="footer-col">
+          <h4>Top States</h4>
+          <a href="/jobs/california/">California</a>
+          <a href="/jobs/texas/">Texas</a>
+          <a href="/jobs/new-york/">New York</a>
+          <a href="/jobs/florida/">Florida</a>
+          <a href="/jobs/illinois/">Illinois</a>
+          <a href="/jobs/massachusetts/">Massachusetts</a>
+          <a href="/jobs/tennessee/">Tennessee</a>
+          <a href="/jobs/virginia/">Virginia</a>
+        </div>
+        <div class="footer-col">
+          <h4>More</h4>
+          <a href="/jobs/travel-nurse/">Travel Nurse</a>
+          <a href="/jobs/remote-nurse/">Remote Jobs</a>
+          <a href="/jobs/per-diem/">Per Diem</a>
+          <a href="/jobs/night-shift/">Night Shift</a>
+          <a href="/jobs/part-time-nurse/">Part-Time</a>
+          <a href="/jobs/nursing-with-salary/">Jobs with Salary</a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>&copy; 2026 ScrubShifts. Nursing jobs, aggregated daily.</span>
+      </div>
+    </div>
+  </footer>
   <script type="module" src="js/app.js"></script>
 </body>
 </html>
