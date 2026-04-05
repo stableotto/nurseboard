@@ -284,6 +284,32 @@ _COMPANY_NAME_MAP: dict[str, str] = {
     "evergreenoutdoorcenter": "Evergreen Outdoor Center",
     "caringnetwork": "Caring Network",
     "healthcaringkw": "Health Caring KW",
+    "baptistjax": "Baptist Health Jacksonville",
+    "ashealthnet": "AS Health Net",
+    "altamed": "AltaMed",
+    "archildrens": "Arkansas Children's",
+    "ameripharma": "AmeriPharma",
+    "adaptadg": "Adapt ADG",
+    "akidolabs": "Akido Labs",
+    "akumincorp": "Akumin Corp",
+    "agiliti": "Agiliti",
+    "allcarehha": "AllCare Home Health",
+    "alphahousecalgary": "Alpha House Calgary",
+    "anewwell": "Anew Well",
+    "aoncology": "AOncology",
+    "arcetyp": "Arcetyp",
+    "aspirehealthalliance": "Aspire Health Alliance",
+    "clearskyhealthcare": "Clear Sky Healthcare",
+    "5starcares": "5 Star Cares",
+    "4seasonstransport": "4 Seasons Transport",
+    "acecaremgmt": "ACE Care Management",
+    "alivation": "Alivation",
+    "allcareers": "All Careers",
+    "agibank": "Agibank",
+    "analogdevices": "Analog Devices",
+    "geisinger": "Geisinger",
+    "pulse": "Pulse",
+    "bayada": "BAYADA",
 }
 
 # Suffixes to split on when the slug is all-lowercase with no obvious word
@@ -325,16 +351,31 @@ _SUFFIX_SPLIT_RE = re.compile(
     r"(" + "|".join(_SLUG_SUFFIXES) + r")$", re.IGNORECASE
 )
 
+# Patterns for cleaning Workday legal entity names
+_LEADING_NUMBERS_RE = re.compile(r"^\d+\s+")
+_CORPORATE_SUFFIX_RE = re.compile(
+    r",?\s*\b(Inc\.?|LLC\.?|L\.?L\.?C\.?|Corporation|Incorporated|Corp\.?|Co\.?|Ltd\.?|Limited|Association|P\.?C\.?)\s*\.?\s*$",
+    re.IGNORECASE,
+)
+_POSSESSIVE_FIX_RE = re.compile(r"'S\b")
+
+
+def _clean_legal_name(name: str) -> str:
+    """Clean a legal entity name from Workday API.
+    '9000 Bon Secours Mercy Health Inc' -> 'Bon Secours Mercy Health'
+    '223 Aurora Medical Group, Inc.' -> 'Aurora Medical Group'
+    """
+    # Strip leading numeric codes
+    name = _LEADING_NUMBERS_RE.sub("", name)
+    # Strip corporate suffixes
+    name = _CORPORATE_SUFFIX_RE.sub("", name).strip().rstrip(",").strip()
+    # Fix possessives: 'S -> 's
+    name = _POSSESSIVE_FIX_RE.sub("'s", name)
+    return name
+
 
 def normalize_company_name(slug: str) -> str:
-    """Convert a company slug to a human-readable display name.
-
-    Checks a hardcoded lookup table first, then applies heuristics:
-    * Insert spaces at camelCase boundaries.
-    * For all-lowercase slugs, split before known suffixes like
-      "health", "medical", "clinic", etc.
-    * Title-case the final result.
-    """
+    """Convert a company slug or legal name to a human-readable display name."""
     if not slug:
         return slug
 
@@ -342,15 +383,41 @@ def normalize_company_name(slug: str) -> str:
     if key in _COMPANY_NAME_MAP:
         return _COMPANY_NAME_MAP[key]
 
-    name = slug
+    name = slug.strip()
 
-    # If there are camelCase transitions, split on them.
+    # If it already has spaces, it's likely from an API (e.g. Workday hiringOrganization)
+    if " " in name:
+        cleaned = _clean_legal_name(name)
+        if cleaned:
+            return cleaned
+
+    # camelCase splitting
     if name != name.lower() and name != name.upper():
         name = _CAMEL_SPLIT_RE.sub(" ", name)
-    else:
-        # All lowercase (or all caps) — try suffix splitting.
-        match = _SUFFIX_SPLIT_RE.search(name)
-        if match and match.start() > 0:
-            name = name[: match.start()] + " " + name[match.start() :]
+        return name.strip()
+
+    # All lowercase — try to split on known words anywhere in the string
+    lower = name.lower()
+    # Build list of all known words to split on (suffixes work as infixes too)
+    split_words = sorted(_SLUG_SUFFIXES, key=len, reverse=True)
+    # Add common prefixes
+    split_words += [
+        "community", "children", "baptist", "memorial", "regional",
+        "alpine", "american", "national", "central", "western",
+        "eastern", "northern", "southern", "pacific", "atlantic",
+        "physicians", "associates", "partners", "alliance", "center",
+        "county", "valley", "river", "lake", "cross", "star",
+        "premier", "primary", "urgent", "rehab", "senior",
+        "pediatric", "dental", "pharma", "transport", "staffing",
+    ]
+
+    result = lower
+    for word in split_words:
+        idx = result.find(word)
+        if idx > 0 and result[idx - 1] != " ":
+            result = result[:idx] + " " + result[idx:]
+
+    if result != lower:
+        return result.title()
 
     return name.title()
