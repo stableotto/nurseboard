@@ -5,31 +5,34 @@ import { formatDate } from "./time.js";
 import { formatSalary, companyColor } from "./filters.js";
 
 export async function renderDetail(container) {
-  const params = new URLSearchParams(window.location.search);
-  const id = params.get("id");
-  if (!id) {
+  // Parse slug from path: /job/at/company/title-hash/
+  const path = window.location.pathname;
+  const slug = path.replace(/^\/job\//, "").replace(/\/$/, "");
+
+  if (!slug) {
     container.innerHTML = '<div class="empty-state">Job not found.</div>';
     return;
   }
 
-  const prefix = id.substring(0, 2);
   container.innerHTML = '<div class="loading">Loading job details...</div>';
 
+  // Find job by slug in jobs.json, then load detail JSON
   let job = null;
   try {
-    const resp = await fetch(`/data/jobs/${prefix}/${id}.json`);
-    if (resp.ok) job = await resp.json();
-  } catch {}
-
-  if (!job) {
-    try {
-      const listResp = await fetch("/data/jobs.json");
-      if (listResp.ok) {
-        const allJobs = await listResp.json();
-        job = allJobs.find((j) => j.id === id);
+    const listResp = await fetch("/data/jobs.json");
+    if (listResp.ok) {
+      const allJobs = await listResp.json();
+      job = allJobs.find((j) => j.slug === slug);
+      if (job) {
+        // Load full detail with description
+        const prefix = job.id.substring(0, 2);
+        try {
+          const detResp = await fetch(`/data/jobs/${prefix}/${job.id}.json`);
+          if (detResp.ok) job = await detResp.json();
+        } catch {}
       }
-    } catch {}
-  }
+    }
+  } catch {}
 
   if (!job) {
     container.innerHTML = '<div class="empty-state">Job not found. <a href="/">Back to jobs</a></div>';

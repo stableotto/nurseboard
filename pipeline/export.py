@@ -250,7 +250,7 @@ def _render_job_rows_html(jobs: list[dict], limit: int = 25) -> str:
         if salary:
             meta_parts.append(f'<span class="salary">{salary}</span>')
 
-        rows.append(f'''<a class="job-row" href="/job.html?id={job["id"]}">
+        rows.append(f'''<a class="job-row" href="/job/{job["slug"]}/">
   <div class="company-avatar" style="background:{color}">{initial}</div>
   <div class="job-info">
     <div class="job-title">{escape(job["title"])}</div>
