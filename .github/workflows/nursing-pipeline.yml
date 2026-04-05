@@ -4,6 +4,15 @@ on:
   schedule:
     - cron: "30 2 * * *"
   workflow_dispatch:
+    inputs:
+      mode:
+        description: "Run mode"
+        required: false
+        default: "full"
+        type: choice
+        options:
+          - full
+          - quick
 
 jobs:
   pipeline:
@@ -29,8 +38,26 @@ jobs:
           key: nursing-db-${{ github.run_number }}
           restore-keys: nursing-db-
 
-      - name: Run pipeline
+      - name: Run full pipeline
+        if: ${{ github.event_name == 'schedule' || inputs.mode != 'quick' }}
         run: python -m pipeline.main
+
+      - name: Quick export (skip scraping/enrichment)
+        if: ${{ inputs.mode == 'quick' }}
+        run: |
+          python -c "
+          import logging
+          logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(name)s: %(message)s', datefmt='%H:%M:%S')
+          from pipeline.config import DB_PATH
+          from pipeline.db import get_connection, get_exportable_jobs, get_stats
+          from pipeline.export import export_for_frontend
+          conn = get_connection(DB_PATH)
+          exportable = get_exportable_jobs(conn)
+          stats = get_stats(conn)
+          export_for_frontend(exportable, stats)
+          conn.close()
+          print(f'Exported {len(exportable)} jobs')
+          "
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
