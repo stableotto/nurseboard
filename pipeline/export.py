@@ -33,12 +33,13 @@ _FULL_STATE_NAMES = {v: k for k, v in STATE_NAMES.items()}
 # Salary regex for extracting from description text
 # Shift detection patterns (checked against title, then description first line)
 _SHIFT_PATTERNS = [
+    # Check rotating FIRST — "Day/Night Rotating" should be rotating, not nights
+    ("rotating", re.compile(r"\brotating\b|\bvariable\b|\bday\s*/\s*night|\bnight\s*/\s*day|\bdays?\s*/\s*nights?|\bnights?\s*/\s*days?", re.IGNORECASE)),
+    ("prn", re.compile(r"\bPRN\b|\bper[\s\-]?diem\b|\bas[\s\-]needed\b", re.IGNORECASE)),
     ("nights", re.compile(r"\bnight\s*shift|\bnights?\b|\b7p\b|\bnoc\b|\bovernight\b|\b3rd\s+shift|\bthird\s+shift", re.IGNORECASE)),
-    ("days", re.compile(r"\bday\s*shift|\bdays?\b(?!\s*ago)|\b7a\b|\b1st\s+shift|\bfirst\s+shift", re.IGNORECASE)),
+    ("days", re.compile(r"\bday\s*shift|\bdays\b(?!\s*ago)|\b7a\b|\b1st\s+shift|\bfirst\s+shift", re.IGNORECASE)),
     ("evenings", re.compile(r"\bevening\b|\b2nd\s+shift|\bsecond\s+shift|\b3p\b", re.IGNORECASE)),
     ("weekends", re.compile(r"\bweekend\b|\bsat\b.*\bsun\b|\bbaylor\b", re.IGNORECASE)),
-    ("prn", re.compile(r"\bPRN\b|\bper[\s\-]?diem\b|\bas[\s\-]needed\b", re.IGNORECASE)),
-    ("rotating", re.compile(r"\brotating\b|\bvariable\b", re.IGNORECASE)),
 ]
 
 
