@@ -686,6 +686,10 @@ a { color: inherit; text-decoration: none; }
   color: var(--text-muted);
 }
 
+/* Hide pre-rendered job list until JS takes over (prevents flash) */
+.job-list { opacity: 0; transition: opacity 0.15s; }
+.job-list.ready { opacity: 1; }
+
 /* Loading / empty states */
 .loading, .empty-state {
   text-align: center;

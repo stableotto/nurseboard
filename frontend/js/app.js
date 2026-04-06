@@ -117,6 +117,7 @@ async function initListPage() {
       countEl.textContent = `${filtered.length.toLocaleString()} nursing job${filtered.length !== 1 ? "s" : ""}`;
     }
     renderJobList(filtered, currentPage, container);
+    container.classList.add("ready");
     if (paginationEl) {
       renderPagination(filtered.length, currentPage, paginationEl, (p) => {
         currentPage = p;
@@ -194,11 +195,5 @@ async function initListPage() {
     if (el) el.addEventListener("change", () => { currentPage = 1; render(); });
   });
 
-  // Skip initial render if pre-rendered HTML is already showing (homepage, no filters)
-  // Only render when user interacts or on category pages
-  const hasPreRendered = container.querySelector(".job-row");
-  const hasCategoryFilter = Object.keys(catFilter).length > 0;
-  if (!hasPreRendered || hasCategoryFilter) {
-    render();
-  }
+  render();
 }
