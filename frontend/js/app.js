@@ -194,5 +194,11 @@ async function initListPage() {
     if (el) el.addEventListener("change", () => { currentPage = 1; render(); });
   });
 
-  render();
+  // Skip initial render if pre-rendered HTML is already showing (homepage, no filters)
+  // Only render when user interacts or on category pages
+  const hasPreRendered = container.querySelector(".job-row");
+  const hasCategoryFilter = Object.keys(catFilter).length > 0;
+  if (!hasPreRendered || hasCategoryFilter) {
+    render();
+  }
 }
