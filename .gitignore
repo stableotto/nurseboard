@@ -4,6 +4,7 @@ __pycache__/
 .env
 frontend/data/
 frontend/jobs/
+frontend/logos/
 frontend/sitemap.xml
 frontend/robots.txt
 .gstack/

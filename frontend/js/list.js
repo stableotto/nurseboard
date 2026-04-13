@@ -6,6 +6,44 @@ import { formatSalary, companyColor } from "./filters.js";
 
 const JOBS_PER_PAGE = 25;
 
+// Map of company slug -> logo filename (populated on load)
+let _logoIndex = null;
+
+async function loadLogoIndex() {
+  if (_logoIndex !== null) return;
+  try {
+    const resp = await fetch("/logos/index.json");
+    if (resp.ok) {
+      _logoIndex = await resp.json();
+    } else {
+      _logoIndex = {};
+    }
+  } catch {
+    _logoIndex = {};
+  }
+}
+
+function slugify(text) {
+  return (text || "unknown").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80);
+}
+
+function avatarHtml(companyName) {
+  const initial = (companyName || "?")[0].toUpperCase();
+  const color = companyColor(companyName);
+  const slug = slugify(companyName);
+  const filename = _logoIndex && _logoIndex[slug];
+  if (filename) {
+    return `<div class="company-avatar" style="background:${color}">` +
+      `<img src="/logos/${filename}" alt="" class="company-logo" ` +
+      `onerror="this.onerror=null;this.style.display='none';this.nextElementSibling.style.display='flex'">` +
+      `<span class="avatar-fallback" style="display:none">${initial}</span></div>`;
+  }
+  return `<div class="company-avatar" style="background:${color}">${initial}</div>`;
+}
+
+// Preload logo index
+loadLogoIndex();
+
 export function renderJobList(jobs, page, container) {
   const start = (page - 1) * JOBS_PER_PAGE;
   const pageJobs = jobs.slice(start, start + JOBS_PER_PAGE);
@@ -17,8 +55,6 @@ export function renderJobList(jobs, page, container) {
 
   container.innerHTML = pageJobs
     .map((job) => {
-      const initial = (job.company_name || "?")[0].toUpperCase();
-      const color = companyColor(job.company_name);
       const salary = formatSalary(job.salary_min, job.salary_max, job.salary_currency);
       const time = job._distance != null ? `${job._distance} mi` : relativeTime(job.posted_date || job.first_seen_at);
       const depts = (job.departments || []).join(", ");
@@ -33,7 +69,7 @@ export function renderJobList(jobs, page, container) {
 
       const href = `/listing/${job.slug || job.id}/`;
       return `<a class="job-row" href="${href}">
-        <div class="company-avatar" style="background:${color}">${initial}</div>
+        ${avatarHtml(job.company_name)}
         <div class="job-info">
           <div class="job-title">${escapeHtml(job.title)} ${shiftBadge}</div>
           <div class="job-meta">${metaParts.join(" &middot; ")}</div>

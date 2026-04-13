@@ -8,6 +8,7 @@ import os
 import logging
 import re
 import shutil
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from html import escape
 
@@ -22,6 +23,13 @@ logger = logging.getLogger(__name__)
 
 SITE_URL = "https://nurseboard.pages.dev"
 FRONTEND_DIR = "frontend"
+LOGOS_DIR = os.path.join(FRONTEND_DIR, "logos")
+
+# Regex to extract tenant, wd_num, site_id from Workday job URLs
+_WD_URL_RE = re.compile(r"https?://([^.]+)\.wd(\d+)\.myworkdayjobs\.com/(?:[a-z]{2}-[A-Z]{2}/)?([^/]+)")
+
+# Cache of company_slug -> logo filename (populated by _download_logos)
+_LOGO_CACHE: set[str] = set()
 
 _US_STATES = set(STATE_NAMES.keys())
 _STATE_RE = re.compile(r"\b([A-Z]{2})\b")
@@ -218,6 +226,24 @@ def _relative_time(date_str: str | None) -> str:
         return ""
 
 
+def _avatar_html(company_name: str, css_prefix: str = "") -> str:
+    """Render company avatar: logo image with initial-color fallback."""
+    initial = (company_name or "?")[0].upper()
+    color = _company_color(company_name)
+    cs = _slugify(company_name or "unknown")
+    logo = _logo_filename(cs)
+    if logo:
+        logo_path = f"{css_prefix}logos/{logo}"
+        return (
+            f'<div class="company-avatar" style="background:{color}">'
+            f'<img src="{logo_path}" alt="" class="company-logo" '
+            f'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">'
+            f'<span class="avatar-fallback" style="display:none">{initial}</span>'
+            f'</div>'
+        )
+    return f'<div class="company-avatar" style="background:{color}">{initial}</div>'
+
+
 def _company_color(name: str) -> str:
     h = 0
     for c in (name or ""):
@@ -308,20 +334,19 @@ def _interleave_by_company(jobs: list[dict]) -> list[dict]:
     return result
 
 
-def _render_job_rows_html(jobs: list[dict], limit: int = 25) -> str:
+def _render_job_rows_html(jobs: list[dict], limit: int = 25, css_prefix: str = "") -> str:
     """Render job list rows as static HTML for SEO."""
     rows = []
     for job in jobs[:limit]:
-        initial = (job["company_name"] or "?")[0].upper()
-        color = _company_color(job["company_name"])
         salary = _format_salary_html(job.get("salary_min"), job.get("salary_max"))
         time_str = _relative_time(job.get("posted_date") or job.get("first_seen_at"))
         meta_parts = [escape(job["company_name"] or "")]
         if salary:
             meta_parts.append(f'<span class="salary">{salary}</span>')
 
+        avatar = _avatar_html(job["company_name"], css_prefix)
         rows.append(f'''<a class="job-row" href="/listing/{job["slug"]}/">
-  <div class="company-avatar" style="background:{color}">{initial}</div>
+  {avatar}
   <div class="job-info">
     <div class="job-title">{escape(job["title"])}</div>
     <div class="job-meta">{" &middot; ".join(meta_parts)}</div>
@@ -504,9 +529,7 @@ def _build_job_jsonld(job: dict, desc_html: str, salary_display: str) -> str:
     return f'<script type="application/ld+json">{json.dumps(ld, separators=(",", ":"))}</script>'
 
 
-def _job_detail_html(job: dict, desc_html: str, css_path: str) -> str:
-    initial = (job["company_name"] or "?")[0].upper()
-    color = _company_color(job["company_name"])
+def _job_detail_html(job: dict, desc_html: str, css_path: str, logo_prefix: str = "") -> str:
     salary = _format_salary_html(job.get("salary_min"), job.get("salary_max"))
     posted = job.get("posted_date") or job.get("first_seen_at") or ""
     meta_parts = [
@@ -573,7 +596,7 @@ def _job_detail_html(job: dict, desc_html: str, css_path: str) -> str:
     <div class="detail-layout">
       <div class="detail-main">
         <div class="detail-company">
-          <div class="company-avatar" style="background:{color}">{initial}</div>
+          {_avatar_html(job["company_name"], logo_prefix)}
           <span class="detail-company-name">{escape(job["company_name"])}</span>
         </div>
         <h1 class="detail-title">{escape(job["title"])}</h1>
@@ -605,7 +628,9 @@ def _category_page_html(heading: str, description: str, meta_desc: str,
                         data_path: str, jobs: list[dict],
                         category_filter_json: str, extra_seo: str = "") -> str:
     count = len(jobs)
-    pre_rendered = _render_job_rows_html(jobs)
+    # Derive logo prefix from css_path (e.g., "../../css/style.css" -> "../../")
+    logo_prefix = css_path.rsplit("css/", 1)[0] if "css/" in css_path else ""
+    pre_rendered = _render_job_rows_html(jobs, css_prefix=logo_prefix)
     companies = len(set(j["company_name"] for j in jobs))
 
     return _page_shell(
@@ -757,9 +782,118 @@ def _generate_geo_data(list_jobs: list[dict]):
             pass
 
 
+def _download_one_logo(tenant: str, wd_num: str, site_id: str, company_slug: str) -> bool:
+    """Download a single company logo from Workday. Returns True if saved."""
+    import requests as req
+    dest = os.path.join(LOGOS_DIR, f"{company_slug}.png")
+    if os.path.exists(dest):
+        return True
+    url = f"https://{tenant}.wd{wd_num}.myworkdayjobs.com/{site_id}/assets/logo"
+    try:
+        resp = req.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
+        if resp.status_code != 200 or len(resp.content) < 100:
+            return False
+        # Verify it looks like an image (PNG, SVG, JPEG, GIF, WEBP)
+        hdr = resp.content[:16]
+        if not (hdr[:4] == b'\x89PNG' or hdr[:4] == b'<svg' or hdr[:6] == b'<?xml '
+                or b'<svg' in hdr or hdr[:2] == b'\xff\xd8' or hdr[:4] == b'GIF8'
+                or hdr[:4] == b'RIFF'):
+            return False
+        # Save as-is (browser handles PNG/SVG/JPEG fine)
+        ext = "svg" if (hdr[:4] == b'<svg' or hdr[:6] == b'<?xml ' or b'<svg' in hdr) else "png"
+        dest = os.path.join(LOGOS_DIR, f"{company_slug}.{ext}")
+        with open(dest, "wb") as f:
+            f.write(resp.content)
+        return True
+    except Exception:
+        return False
+
+
+def _download_logos(jobs: list[dict]):
+    """Download company logos from Workday career sites."""
+    os.makedirs(LOGOS_DIR, exist_ok=True)
+
+    # Collect unique company_slug -> (tenant, wd_num, site_id) from Workday URLs
+    slug_to_wd: dict[str, tuple[str, str, str]] = {}
+    for job in jobs:
+        if (job.get("ats") or job.get("ats_platform") or "").lower() != "workday":
+            continue
+        url = job.get("url", "")
+        m = _WD_URL_RE.match(url)
+        if not m:
+            continue
+        tenant, wd_num, site_id = m.groups()
+        company_display = normalize_company_name(
+            job.get("company_name") or job.get("company_slug") or ""
+        )
+        cs = _slugify(company_display)
+        if cs not in slug_to_wd:
+            slug_to_wd[cs] = (tenant, wd_num, site_id)
+
+    # Check which logos already exist
+    existing = set()
+    for fname in os.listdir(LOGOS_DIR):
+        existing.add(os.path.splitext(fname)[0])
+
+    to_download = {cs: wd for cs, wd in slug_to_wd.items() if cs not in existing}
+    if not to_download:
+        logger.info("All %d company logos already cached", len(slug_to_wd))
+        _LOGO_CACHE.update(existing & set(slug_to_wd.keys()))
+        # Write index.json for JS
+        logo_map = {}
+        for fname in sorted(os.listdir(LOGOS_DIR)):
+            if fname.endswith(".json"):
+                continue
+            logo_map[os.path.splitext(fname)[0]] = fname
+        with open(os.path.join(LOGOS_DIR, "index.json"), "w") as f:
+            json.dump(logo_map, f, separators=(",", ":"))
+        return
+
+    logger.info("Downloading logos for %d companies (%d cached)", len(to_download), len(existing))
+    downloaded = 0
+
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        futures = {
+            executor.submit(_download_one_logo, t, w, s, cs): cs
+            for cs, (t, w, s) in to_download.items()
+        }
+        for future in as_completed(futures):
+            if future.result():
+                downloaded += 1
+
+    logger.info("Downloaded %d new logos (%d failed)", downloaded, len(to_download) - downloaded)
+
+    # Populate cache and write index.json for JS
+    for fname in os.listdir(LOGOS_DIR):
+        _LOGO_CACHE.add(os.path.splitext(fname)[0])
+
+    # Write index.json mapping slug -> filename for JS
+    logo_map = {}
+    for fname in sorted(os.listdir(LOGOS_DIR)):
+        if fname.endswith(".json"):
+            continue
+        slug = os.path.splitext(fname)[0]
+        logo_map[slug] = fname
+    with open(os.path.join(LOGOS_DIR, "index.json"), "w") as f:
+        json.dump(logo_map, f, separators=(",", ":"))
+
+
+def _logo_filename(company_slug: str) -> str | None:
+    """Return the logo filename if it exists, else None."""
+    if not os.path.isdir(LOGOS_DIR):
+        return None
+    for ext in ("png", "svg"):
+        if os.path.exists(os.path.join(LOGOS_DIR, f"{company_slug}.{ext}")):
+            return f"{company_slug}.{ext}"
+    return None
+
+
 def export_for_frontend(jobs: list[dict], stats: dict):
     """Export jobs to frontend data files + generate pre-rendered SEO pages."""
     os.makedirs(EXPORT_DIR, exist_ok=True)
+
+    # Download company logos from Workday
+    _download_logos(jobs)
 
     list_jobs = []
     detail_jobs = []
@@ -1126,7 +1260,7 @@ def _generate_homepage(list_jobs: list[dict]):
         key=lambda x: -x[2],
     )[:20]
 
-    pre_rendered = _render_job_rows_html(_interleave_by_company(list_jobs))
+    pre_rendered = _render_job_rows_html(_interleave_by_company(list_jobs), css_prefix="")
     hub_roles = _build_hub_section_html("Browse by Role", role_links)
     hub_metros = _build_hub_section_html("Browse by Metro Area", metro_links)
     hub_states = _build_hub_section_html("Browse by State", state_links[:20])

@@ -48,8 +48,11 @@ export async function renderDetail(container) {
   }
 }
 
+function slugify(text) {
+  return (text || "unknown").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80);
+}
+
 function renderJobDetail(job, container) {
-  const initial = (job.company_name || "?")[0].toUpperCase();
   const color = companyColor(job.company_name);
   const salary = formatSalary(job.salary_min, job.salary_max, job.salary_currency);
   const posted = formatDate(job.posted_date || job.first_seen_at);
@@ -81,7 +84,12 @@ function renderJobDetail(job, container) {
     <div class="detail-layout">
       <div class="detail-main">
         <div class="detail-company">
-          <div class="company-avatar" style="background:${color}">${initial}</div>
+          <div class="company-avatar" style="background:${color}">
+            <img src="/logos/${slugify(job.company_name)}.png" alt="" class="company-logo"
+              onload="this.nextElementSibling.style.display='none'"
+              onerror="this.onerror=null;this.style.display='none'">
+            <span class="avatar-fallback">${(job.company_name || "?")[0].toUpperCase()}</span>
+          </div>
           <span class="detail-company-name">${escapeHtml(job.company_name || "")}</span>
         </div>
         <h1 class="detail-title">${escapeHtml(job.title)}</h1>
