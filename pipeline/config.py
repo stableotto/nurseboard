@@ -64,6 +64,8 @@ RATE_LIMITS = {
     "workday": 3,
     "workable": 3,
     "bamboohr": 2,
+    "oracle_hcm": 3,
+    "neogov": 2,
 }
 
 # Enrichment settings

@@ -17,6 +17,8 @@ from pipeline.enrichers.lever import enrich_lever
 from pipeline.enrichers.ashby import enrich_ashby
 from pipeline.enrichers.workday import enrich_workday
 from pipeline.enrichers.bamboohr import enrich_bamboohr
+from pipeline.enrichers.oracle_hcm import enrich_oracle_hcm
+from pipeline.enrichers.neogov import enrich_neogov
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +29,8 @@ ENRICHERS = {
     "ashby": enrich_ashby,
     "workday": enrich_workday,
     "bamboohr": enrich_bamboohr,
+    "oracle_hcm": enrich_oracle_hcm,
+    "neogov": enrich_neogov,
 }
 
 

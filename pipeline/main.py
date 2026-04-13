@@ -6,13 +6,15 @@ import sys
 from pipeline.config import DB_PATH
 from pipeline.db import (
     get_connection, get_exportable_jobs, get_stats,
-    mark_removed, upsert_job, delete_unenriched,
+    mark_removed, upsert_job, delete_unenriched, save_enrichment,
 )
 from pipeline.download import download_upstream_jobs
 from pipeline.enrich import enrich_all
 from pipeline.export import export_for_frontend
 from pipeline.filter import filter_nursing_jobs
 from pipeline.scrape_workday import scrape_extra_workday
+from pipeline.scrape_oracle_hcm import scrape_oracle_hcm
+from pipeline.scrape_neogov import scrape_neogov
 
 logging.basicConfig(
     level=logging.INFO,
@@ -37,6 +39,21 @@ def main():
     extra_jobs = scrape_extra_workday()
     if extra_jobs:
         nursing_jobs.extend(extra_jobs)
+        logger.info("Added %d extra Workday jobs", len(extra_jobs))
+
+    # 2c. Scrape Oracle HCM career sites
+    oracle_jobs = scrape_oracle_hcm()
+    if oracle_jobs:
+        nursing_jobs.extend(oracle_jobs)
+        logger.info("Added %d Oracle HCM jobs", len(oracle_jobs))
+
+    # 2d. Scrape NEOGOV agencies
+    neogov_jobs = scrape_neogov()
+    if neogov_jobs:
+        nursing_jobs.extend(neogov_jobs)
+        logger.info("Added %d NEOGOV jobs", len(neogov_jobs))
+
+    if extra_jobs or oracle_jobs or neogov_jobs:
         logger.info("Total nursing jobs (upstream + extra): %d", len(nursing_jobs))
 
     if not nursing_jobs:
@@ -50,15 +67,42 @@ def main():
     new_by_ats = {}
     updated_count = 0
     current_urls = set()
+    pre_enriched = []
     for job in nursing_jobs:
         current_urls.add(job["url"])
-        if upsert_job(conn, job):
+        is_new = upsert_job(conn, job)
+        if is_new:
             new_count += 1
             ats = (job.get("ats") or "").lower()
             new_by_ats[ats] = new_by_ats.get(ats, 0) + 1
+            # NEOGOV scraper provides description via JSON-LD at scrape time
+            if job.get("_description_html"):
+                pre_enriched.append(job)
         else:
             updated_count += 1
     conn.commit()
+
+    # Save pre-enriched data (NEOGOV jobs with descriptions from scraper)
+    if pre_enriched:
+        import re as _re
+        for job in pre_enriched:
+            html = job["_description_html"]
+            plain = _re.sub(r"<[^>]+>", " ", html)
+            plain = _re.sub(r"\s+", " ", plain).strip()
+            enrich_data = {
+                "description_html": html,
+                "description_plain": plain,
+                "company_name": job.get("company"),
+            }
+            if job.get("posted_date"):
+                enrich_data["posted_date"] = job["posted_date"]
+            if job.get("salary_min"):
+                enrich_data["salary_min"] = job["salary_min"]
+            if job.get("salary_max"):
+                enrich_data["salary_max"] = job["salary_max"]
+            save_enrichment(conn, job["url"], enrich_data)
+        conn.commit()
+        logger.info("  Pre-enriched %d NEOGOV jobs from scraper", len(pre_enriched))
     logger.info("=== Upsert Breakdown ===")
     logger.info("  Upstream nursing jobs: %d", len(nursing_jobs))
     logger.info("  Already in DB (updated): %d", updated_count)
