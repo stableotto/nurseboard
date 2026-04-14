@@ -25,11 +25,14 @@ export async function renderDetail(container) {
 
   const prefix = id.substring(0, 2);
 
-  // Single request — go straight to the detail JSON file
+  // Fetch the chunk file and look up this job by ID
   let job = null;
   try {
-    const resp = await fetch(`/data/jobs/${prefix}/${id}.json`);
-    if (resp.ok) job = await resp.json();
+    const resp = await fetch(`/data/jobs/${prefix}.json`);
+    if (resp.ok) {
+      const chunk = await resp.json();
+      job = chunk[id] || null;
+    }
   } catch {}
 
   if (!job) {

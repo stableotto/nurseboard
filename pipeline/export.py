@@ -937,24 +937,37 @@ def export_for_frontend(jobs: list[dict], stats: dict):
 
 
 def _generate_job_detail_pages(detail_jobs: list[tuple[dict, str]]):
-    """Generate JSON detail files for each job (loaded by job.html client-side)."""
+    """Generate chunked JSON detail files keyed by 2-char hex prefix.
+
+    Instead of one file per job (which exceeds Cloudflare Pages' 20K file
+    limit), we bundle all jobs sharing the same ID prefix into a single
+    chunk file: /data/jobs/{prefix}.json
+
+    Each chunk is a dict mapping job ID -> job detail object.
+    Client fetches /data/jobs/{prefix}.json and looks up job[id].
+    """
     os.makedirs(DETAIL_DIR, exist_ok=True)
     count = 0
+    chunks: dict[str, dict] = {}
+
     for entry, desc_html in detail_jobs:
         jid = entry["id"]
         prefix = jid[:2]
-        detail_dir = os.path.join(DETAIL_DIR, prefix)
-        os.makedirs(detail_dir, exist_ok=True)
 
         salary = _format_salary_html(entry.get("salary_min"), entry.get("salary_max"))
         jsonld = _build_job_jsonld(entry, desc_html, salary)
 
         detail = {**entry, "description_html": desc_html, "jsonld": jsonld}
-        with open(os.path.join(detail_dir, f"{jid}.json"), "w") as f:
-            json.dump(detail, f, separators=(",", ":"))
+        if prefix not in chunks:
+            chunks[prefix] = {}
+        chunks[prefix][jid] = detail
         count += 1
 
-    logger.info("Generated %d job detail files", count)
+    for prefix, jobs_map in chunks.items():
+        with open(os.path.join(DETAIL_DIR, f"{prefix}.json"), "w") as f:
+            json.dump(jobs_map, f, separators=(",", ":"))
+
+    logger.info("Generated %d job details in %d chunk files", count, len(chunks))
 
 
 def _generate_all_category_pages(list_jobs: list[dict]):
