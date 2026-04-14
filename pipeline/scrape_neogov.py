@@ -35,19 +35,41 @@ USER_AGENTS = [
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
 ]
 
-# Nursing keywords to search globally
+# Nursing keywords to search globally — aligned with TITLE_KEYWORDS and SEO_CATEGORIES
 SEARCH_KEYWORDS = [
+    # Core roles
     "registered nurse",
     "nurse practitioner",
     "LPN",
     "LVN",
     "CNA",
     "nursing",
-    "RN",
     "CRNA",
-    "nurse midwife",
-    "clinical nurse",
+    "APRN",
+    # Specialty
+    "ICU nurse",
+    "NICU",
+    "med surg",
+    "psychiatric nurse",
+    "behavioral health nurse",
+    "oncology nurse",
+    "pediatric nurse",
+    "labor delivery nurse",
+    # Settings
+    "home health nurse",
+    "hospice nurse",
+    "public health nurse",
+    # Leadership
     "charge nurse",
+    "nurse manager",
+    "nurse educator",
+    "clinical nurse",
+    "director of nursing",
+    # Other matches from title filter
+    "nurse midwife",
+    "nurse navigator",
+    "staff nurse",
+    "case manager nurse",
 ]
 
 # Regex to extract job links from the global /jobs HTML fragments
