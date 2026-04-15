@@ -35,6 +35,7 @@ function avatarHtml(companyName) {
   if (filename) {
     return `<div class="company-avatar" style="background:${color}">` +
       `<img src="/logos/${filename}" alt="" class="company-logo" ` +
+      `onload="this.parentNode.style.background='none'" ` +
       `onerror="this.onerror=null;this.style.display='none';this.nextElementSibling.style.display='flex'">` +
       `<span class="avatar-fallback" style="display:none">${initial}</span></div>`;
   }

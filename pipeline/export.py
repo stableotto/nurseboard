@@ -237,6 +237,7 @@ def _avatar_html(company_name: str, css_prefix: str = "") -> str:
         return (
             f'<div class="company-avatar" style="background:{color}">'
             f'<img src="{logo_path}" alt="" class="company-logo" '
+            f'onload="this.parentNode.style.background=\'none\'" '
             f'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">'
             f'<span class="avatar-fallback" style="display:none">{initial}</span>'
             f'</div>'

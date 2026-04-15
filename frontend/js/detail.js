@@ -89,7 +89,7 @@ function renderJobDetail(job, container) {
         <div class="detail-company">
           <div class="company-avatar" style="background:${color}">
             <img src="/logos/${slugify(job.company_name)}.png" alt="" class="company-logo"
-              onload="this.nextElementSibling.style.display='none'"
+              onload="this.parentNode.style.background='none';this.nextElementSibling.style.display='none'"
               onerror="this.onerror=null;this.style.display='none'">
             <span class="avatar-fallback">${(job.company_name || "?")[0].toUpperCase()}</span>
           </div>
