@@ -24,8 +24,8 @@ from urllib.parse import quote
 
 import requests
 
-from pipeline.config import SALARY_RANGE_PATTERN, HOURLY_PATTERN
 from pipeline.filter import is_nursing_job
+from pipeline.salary import parse_salary
 
 logger = logging.getLogger(__name__)
 
@@ -97,17 +97,7 @@ def _load_sites() -> list[tuple[str, str]]:
 
 def _parse_salary_from_text(text: str) -> tuple[int | None, int | None]:
     """Extract salary from description text. Returns (min_cents, max_cents)."""
-    if not text:
-        return None, None
-    match = SALARY_RANGE_PATTERN.search(text)
-    if not match:
-        return None, None
-    low = float(match.group(1).replace(",", ""))
-    high = float(match.group(2).replace(",", ""))
-    if HOURLY_PATTERN.search(text[match.start():match.end() + 20]):
-        low *= 2080
-        high *= 2080
-    return int(low * 100), int(high * 100)
+    return parse_salary(text)
 
 
 def _fetch_site_jobs(host: str, site_number: str) -> list[dict]:

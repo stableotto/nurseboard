@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 
 import requests
 
-from pipeline.config import SALARY_RANGE_PATTERN, HOURLY_PATTERN
+from pipeline.salary import parse_salary
 
 logger = logging.getLogger(__name__)
 
@@ -59,14 +59,10 @@ def enrich_lever(job: dict) -> dict | None:
 
     additional = data.get("additionalPlain") or ""
     full_text = (result.get("description_plain") or "") + " " + additional
-    salary_match = SALARY_RANGE_PATTERN.search(full_text)
-    if salary_match:
-        low = float(salary_match.group(1).replace(",", ""))
-        high = float(salary_match.group(2).replace(",", ""))
-        if HOURLY_PATTERN.search(full_text[salary_match.start():salary_match.end() + 20]):
-            low *= 2080
-            high *= 2080
-        result["salary_min"] = int(low * 100)
-        result["salary_max"] = int(high * 100)
+    sal_min, sal_max = parse_salary(full_text)
+    if sal_min:
+        result["salary_min"] = sal_min
+    if sal_max:
+        result["salary_max"] = sal_max
 
     return result

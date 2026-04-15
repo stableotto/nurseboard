@@ -84,4 +84,13 @@ def enrich_greenhouse(job: dict) -> dict | None:
             result["salary_max"] = int(max_val)
         result["salary_currency"] = currency
 
+    # Fallback: parse salary from description if API didn't provide it
+    if not result.get("salary_min"):
+        from pipeline.salary import parse_salary
+        sal_min, sal_max = parse_salary(result.get("description_plain", ""))
+        if sal_min:
+            result["salary_min"] = sal_min
+        if sal_max:
+            result["salary_max"] = sal_max
+
     return result

@@ -12,7 +12,7 @@ from urllib.parse import quote
 
 import requests
 
-from pipeline.config import SALARY_RANGE_PATTERN, HOURLY_PATTERN
+from pipeline.salary import parse_salary
 
 logger = logging.getLogger(__name__)
 
@@ -88,15 +88,10 @@ def enrich_oracle_hcm(job: dict) -> dict | None:
         result["company_name"] = company
 
     # Parse salary from full description text
-    text = result.get("description_plain", "")
-    salary_match = SALARY_RANGE_PATTERN.search(text)
-    if salary_match:
-        low = float(salary_match.group(1).replace(",", ""))
-        high = float(salary_match.group(2).replace(",", ""))
-        if HOURLY_PATTERN.search(text[salary_match.start():salary_match.end() + 20]):
-            low *= 2080
-            high *= 2080
-        result["salary_min"] = int(low * 100)
-        result["salary_max"] = int(high * 100)
+    sal_min, sal_max = parse_salary(result.get("description_plain", ""))
+    if sal_min:
+        result["salary_min"] = sal_min
+    if sal_max:
+        result["salary_max"] = sal_max
 
     return result if result else None

@@ -51,10 +51,27 @@ DEPARTMENT_KEYWORDS = re.compile(
 )
 
 # Salary parsing from description text
+# Matches: "$50,000 - $75,000", "$28.00 to $42.00/hr", "$32/hr - $48/hr"
 SALARY_RANGE_PATTERN = re.compile(
-    r"\$([\d,]+(?:\.\d{2})?)\s*[-\u2013/]+(?: ?to ?)?\s*\$([\d,]+(?:\.\d{2})?)"
+    r"\$([\d,]+(?:\.\d{2})?)\s*(?:/\w+\s*)?(?:[-\u2013]+|to)\s*\$([\d,]+(?:\.\d{2})?)"
 )
-HOURLY_PATTERN = re.compile(r"/\s*(?:hr|hour)", re.IGNORECASE)
+# Matches single salary: "$75,000", "$45.00/hr", "Starting at $50,000"
+SALARY_SINGLE_PATTERN = re.compile(
+    r"(?:(?:starting|up to|from|base|minimum|at least|approximately|~)\s+)?"
+    r"\$([\d,]+(?:\.\d{2})?)"
+    r"(?:\s*[-\u2013]\s*\$([\d,]+(?:\.\d{2})?))?",  # optional upper bound
+    re.IGNORECASE,
+)
+# Detects hourly pay — broader than before
+HOURLY_PATTERN = re.compile(
+    r"(?:/\s*(?:hr|hour)|per\s+hour|hourly|/hr\b|\bhr\b.*rate|\ban\s+hour)",
+    re.IGNORECASE,
+)
+# Detects annual pay
+ANNUAL_PATTERN = re.compile(
+    r"(?:per\s+year|per\s+annum|annually|annual|/\s*(?:yr|year)|\bsalary\b)",
+    re.IGNORECASE,
+)
 
 # Rate limiting (requests per second per ATS)
 RATE_LIMITS = {
