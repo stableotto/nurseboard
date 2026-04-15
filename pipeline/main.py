@@ -11,6 +11,7 @@ from pipeline.db import (
 from pipeline.download import download_upstream_jobs
 from pipeline.enrich import enrich_all
 from pipeline.export import export_for_frontend
+from pipeline.freshness import check_freshness
 from pipeline.filter import filter_nursing_jobs
 from pipeline.scrape_workday import scrape_extra_workday
 from pipeline.scrape_oracle_hcm import scrape_oracle_hcm
@@ -56,6 +57,15 @@ def main():
 
     # 3. Upsert into SQLite — track which are new this run
     conn = get_connection(DB_PATH)
+
+    # One-time migration: fix BambooHR /careers/view/ -> /careers/ URLs
+    fixed = conn.execute(
+        "UPDATE jobs SET url = REPLACE(url, '/careers/view/', '/careers/') "
+        "WHERE url LIKE '%bamboohr.com/careers/view/%'"
+    ).rowcount
+    if fixed:
+        conn.commit()
+        logger.info("Migrated %d BambooHR URLs to new format", fixed)
     existing_before = conn.execute("SELECT COUNT(*) FROM jobs").fetchone()[0]
     new_count = 0
     new_by_ats = {}
@@ -103,6 +113,11 @@ def main():
     conn.commit()
     if cleaned:
         logger.info("  Cleaned up %d unenrichable jobs (404/gone)", cleaned)
+
+    # 6b. Freshness check: verify oldest enriched jobs are still live
+    logger.info("=== Freshness Check ===")
+    freshness = check_freshness(DB_PATH)
+    logger.info("  Checked %d, removed %d stale jobs", freshness["checked"], freshness["removed"])
 
     # 7. Export for frontend
     conn = get_connection(DB_PATH)

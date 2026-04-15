@@ -54,11 +54,20 @@ def get_connection(db_path: str) -> sqlite3.Connection:
     return conn
 
 
+def _normalize_url(url: str) -> str:
+    """Normalize ATS URLs to canonical form."""
+    # BambooHR: /careers/view/{id} -> /careers/{id}
+    if "bamboohr.com" in url:
+        url = url.replace("/careers/view/", "/careers/")
+    return url
+
+
 def upsert_job(conn: sqlite3.Connection, job: dict) -> bool:
     """Insert or update a job. Returns True if newly inserted."""
     now = datetime.now(timezone.utc).isoformat()
     departments = json.dumps(job.get("departments", []))
 
+    job["url"] = _normalize_url(job["url"])
     cursor = conn.execute("SELECT url FROM jobs WHERE url = ?", (job["url"],))
     exists = cursor.fetchone() is not None
 
