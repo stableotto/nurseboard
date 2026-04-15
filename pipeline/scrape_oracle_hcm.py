@@ -36,6 +36,44 @@ MAX_PAGES = 100  # Safety limit: 100 * 200 = 20,000 per site
 
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"
 
+# Regex to extract siteName from CX_CONFIG (JS object literal, not JSON)
+_SITE_NAME_RE = re.compile(r"siteName:\s*'([^']+)'")
+
+# Cache: (host, site_number) -> company name
+_SITE_NAME_CACHE: dict[str, str] = {}
+
+
+def _fetch_site_name(host: str, site_number: str) -> str:
+    """Fetch CX_CONFIG from career site HTML to get company name."""
+    cache_key = f"{host}|{site_number}"
+    if cache_key in _SITE_NAME_CACHE:
+        return _SITE_NAME_CACHE[cache_key]
+
+    name = ""
+    url = f"https://{host}/hcmUI/CandidateExperience/en/sites/{site_number}/jobs"
+    try:
+        resp = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=15)
+        if resp.status_code == 200:
+            match = _SITE_NAME_RE.search(resp.text)
+            if match:
+                name = match.group(1).strip()
+                # Clean up JS escape sequences and trailing junk
+                name = name.replace("\\'", "'").rstrip("\\").strip()
+                # Strip trailing "Career Site ...", "Careers"
+                cleaned = re.sub(r"\s+Career\s+Site.*$", "", name, flags=re.IGNORECASE).strip()
+                if len(cleaned) >= 3:
+                    name = cleaned
+                cleaned = re.sub(r"\s+Careers?\s*$", "", name, flags=re.IGNORECASE).strip()
+                if len(cleaned) >= 4:
+                    name = cleaned
+                # Strip "Careers at " prefix
+                name = re.sub(r"^Careers?\s+at\s+", "", name, flags=re.IGNORECASE).strip()
+    except Exception as e:
+        logger.debug("[oracle-hcm] Failed to fetch site name for %s/%s: %s", host, site_number, e)
+
+    _SITE_NAME_CACHE[cache_key] = name
+    return name
+
 
 def _load_sites() -> list[tuple[str, str]]:
     """Load Oracle HCM sites. Returns list of (host, site_number)."""
@@ -76,6 +114,9 @@ def _fetch_site_jobs(host: str, site_number: str) -> list[dict]:
     """Fetch all jobs from a single Oracle HCM site, return nursing matches."""
     base = f"https://{host}"
     api_base = f"{base}/hcmRestApi/resources/latest/recruitingCEJobRequisitions"
+
+    # Get company name from CX_CONFIG (one fetch per site)
+    company_name = _fetch_site_name(host, site_number)
 
     headers = {
         "Accept": "application/json",
@@ -143,7 +184,7 @@ def _fetch_site_jobs(host: str, site_number: str) -> list[dict]:
 
             job = {
                 "title": title,
-                "company": host.split(".")[0],  # fallback slug
+                "company": company_name or host.split(".")[0],
                 "ats": "oracle_hcm",
                 "url": job_url,
                 "location": location[:80] if location else "",

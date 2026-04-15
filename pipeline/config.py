@@ -312,6 +312,10 @@ _COMPANY_NAME_MAP: dict[str, str] = {
     "geisinger": "Geisinger",
     "pulse": "Pulse",
     "bayada": "BAYADA",
+    # Oracle HCM site names
+    "mayo": "Mayo Clinic",
+    "chs": "Community Health Systems",
+    "osu medical center": "Ohio State University Medical Center",
 }
 
 # Suffixes to split on when the slug is all-lowercase with no obvious word

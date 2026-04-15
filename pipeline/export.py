@@ -840,14 +840,7 @@ def _download_logos(jobs: list[dict]):
     if not to_download:
         logger.info("All %d company logos already cached", len(slug_to_wd))
         _LOGO_CACHE.update(existing & set(slug_to_wd.keys()))
-        # Write index.json for JS
-        logo_map = {}
-        for fname in sorted(os.listdir(LOGOS_DIR)):
-            if fname.endswith(".json"):
-                continue
-            logo_map[os.path.splitext(fname)[0]] = fname
-        with open(os.path.join(LOGOS_DIR, "index.json"), "w") as f:
-            json.dump(logo_map, f, separators=(",", ":"))
+        _write_logo_index()
         return
 
     logger.info("Downloading logos for %d companies (%d cached)", len(to_download), len(existing))
@@ -864,11 +857,15 @@ def _download_logos(jobs: list[dict]):
 
     logger.info("Downloaded %d new logos (%d failed)", downloaded, len(to_download) - downloaded)
 
-    # Populate cache and write index.json for JS
+    # Populate cache
     for fname in os.listdir(LOGOS_DIR):
         _LOGO_CACHE.add(os.path.splitext(fname)[0])
 
-    # Write index.json mapping slug -> filename for JS
+    _write_logo_index()
+
+
+def _write_logo_index():
+    """Write index.json mapping slug -> filename for JS."""
     logo_map = {}
     for fname in sorted(os.listdir(LOGOS_DIR)):
         if fname.endswith(".json"):
