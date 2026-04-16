@@ -132,7 +132,7 @@ def check_freshness(db_path: str) -> dict:
         conn.commit()
         logger.info("[freshness] Removed %d stale jobs (404/410)", len(dead_urls))
     else:
-        logger.info("[freshness] All %d jobs still live", len(urls))
+        logger.info("[freshness] All %d jobs still live", len(jobs))
 
     conn.close()
-    return {"checked": len(urls), "removed": len(dead_urls)}
+    return {"checked": len(jobs), "removed": len(dead_urls)}
