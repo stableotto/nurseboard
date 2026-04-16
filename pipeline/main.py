@@ -108,6 +108,29 @@ def main():
         total_enriched += r["success"]
         total_failed += r["failed"]
 
+    # 5b. Re-parse salary for enriched jobs missing salary data
+    logger.info("=== Salary Re-parse ===")
+    conn = get_connection(DB_PATH)
+    from pipeline.salary import parse_salary
+    no_salary = conn.execute(
+        """SELECT url, description_plain FROM jobs
+        WHERE enriched_at IS NOT NULL AND removed_at IS NULL
+          AND salary_min IS NULL AND description_plain IS NOT NULL
+          AND description_plain != ''"""
+    ).fetchall()
+    reparsed = 0
+    for row in no_salary:
+        sal_min, sal_max = parse_salary(row["description_plain"])
+        if sal_min:
+            conn.execute(
+                "UPDATE jobs SET salary_min = ?, salary_max = ?, updated_at = datetime('now') WHERE url = ?",
+                (sal_min, sal_max, row["url"]),
+            )
+            reparsed += 1
+    if reparsed:
+        conn.commit()
+    logger.info("  Re-parsed salary for %d/%d jobs missing salary", reparsed, len(no_salary))
+
     # 6. Clean up: delete jobs that failed enrichment (stale/gone from ATS)
     cleaned = delete_unenriched(conn)
     conn.commit()
