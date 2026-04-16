@@ -85,8 +85,11 @@ def parse_salary(text: str) -> tuple[int | None, int | None]:
     # Try range pattern first: "$50,000 - $75,000" or "$28.00 - $42.00/hr"
     match = SALARY_RANGE_PATTERN.search(text)
     if match:
-        low = float(match.group(1).replace(",", ""))
-        high = float(match.group(2).replace(",", ""))
+        try:
+            low = float(match.group(1).replace(",", ""))
+            high = float(match.group(2).replace(",", ""))
+        except (ValueError, TypeError):
+            low = high = 0
         hourly = _is_hourly(text, match.start(), match.end())
 
         low_cents = _classify_and_convert(low, hourly)
@@ -97,7 +100,13 @@ def parse_salary(text: str) -> tuple[int | None, int | None]:
 
     # Try single value: "$75,000" or "$45/hr"
     for match in SALARY_SINGLE_PATTERN.finditer(text):
-        val1 = float(match.group(1).replace(",", ""))
+        val1_str = match.group(1)
+        if not val1_str or not val1_str.strip(","):
+            continue
+        try:
+            val1 = float(val1_str.replace(",", ""))
+        except ValueError:
+            continue
         val2_str = match.group(2)
 
         hourly = _is_hourly(text, match.start(), match.end())
