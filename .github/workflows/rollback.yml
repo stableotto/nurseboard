@@ -1,0 +1,46 @@
+name: Rollback
+
+on:
+  workflow_dispatch:
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Find previous deployment
+        id: prev
+        run: |
+          DEPLOY=$(curl -s \
+            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+            "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/pages/projects/scrubshifts/deployments?per_page=5" \
+            | python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          deploys = data['result']
+          # Skip the current production deploy, grab the one before it
+          for d in deploys:
+            if d.get('is_skipped'):
+              continue
+            aliases = d.get('aliases', [])
+            # First non-current production deploy
+          # The first result is current, second is what we want
+          prev = deploys[1]
+          print(prev['id'])
+          ")
+          echo "deploy_id=$DEPLOY" >> "$GITHUB_OUTPUT"
+          echo "Rolling back to deployment: $DEPLOY"
+
+      - name: Rollback deployment
+        run: |
+          RESULT=$(curl -s -X POST \
+            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+            "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/pages/projects/scrubshifts/deployments/${{ steps.prev.outputs.deploy_id }}/rollback")
+          SUCCESS=$(echo "$RESULT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('success', False))")
+          if [ "$SUCCESS" = "True" ]; then
+            echo "Rollback successful!"
+          else
+            echo "Rollback failed: $RESULT"
+            exit 1
+          fi
