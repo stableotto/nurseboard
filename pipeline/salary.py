@@ -13,6 +13,7 @@ from pipeline.config import (
     SALARY_SINGLE_PATTERN,
     HOURLY_PATTERN,
     ANNUAL_PATTERN,
+    BONUS_PATTERN,
 )
 
 # Minimum plausible hourly rate and annual salary (filters out noise like "$1", "$5")
@@ -125,3 +126,33 @@ def parse_salary(text: str) -> tuple[int | None, int | None]:
             return cents, cents
 
     return None, None
+
+
+MIN_BONUS = 500
+MAX_BONUS = 100_000
+
+
+def parse_bonus(text: str) -> int | None:
+    """Extract sign-on bonus amount from text. Returns amount in cents, or None."""
+    if not text:
+        return None
+
+    for match in BONUS_PATTERN.finditer(text):
+        raw = match.group(1) or match.group(2)
+        if not raw:
+            continue
+        try:
+            value = float(raw.replace(",", ""))
+        except ValueError:
+            continue
+
+        # Check for "$15k" style — look for 'k' right after the number
+        span_end = match.end()
+        after = text[match.start():span_end].lower()
+        if "k" in after and value < 1000:
+            value *= 1000
+
+        if MIN_BONUS <= value <= MAX_BONUS:
+            return int(value * 100)
+
+    return None

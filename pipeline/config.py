@@ -157,6 +157,19 @@ ANNUAL_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+# Sign-on bonus parsing from description text
+# Matches: "$5,000 sign-on bonus", "signing bonus of $10,000", "$15k sign on bonus"
+BONUS_PATTERN = re.compile(
+    r"(?:"
+    # Pattern 1: dollar amount followed by bonus phrase
+    r"\$([\d,]+(?:\.\d{2})?)\s*(?:k\b)?\s*(?:sign[\-\s]?on|signing|recruitment|retention|welcome|hiring)\s*bonus"
+    r"|"
+    # Pattern 2: bonus phrase followed by dollar amount
+    r"(?:sign[\-\s]?on|signing|recruitment|retention|welcome|hiring)\s*bonus\s*(?:of\s*|up\s+to\s*|:\s*)?\$([\d,]+(?:\.\d{2})?)\s*(?:k\b)?"
+    r")",
+    re.IGNORECASE,
+)
+
 # Rate limiting (requests per second per ATS)
 RATE_LIMITS = {
     "greenhouse": 5,

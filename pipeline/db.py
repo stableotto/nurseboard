@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     salary_min INTEGER,
     salary_max INTEGER,
     salary_currency TEXT DEFAULT 'USD',
+    bonus INTEGER,
     description_html TEXT,
     description_plain TEXT,
 
@@ -51,6 +52,12 @@ def get_connection(db_path: str) -> sqlite3.Connection:
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA synchronous=NORMAL")
     conn.executescript(SCHEMA)
+
+    # Migrations for existing databases
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(jobs)").fetchall()}
+    if "bonus" not in cols:
+        conn.execute("ALTER TABLE jobs ADD COLUMN bonus INTEGER")
+
     return conn
 
 
@@ -147,6 +154,7 @@ def save_enrichment(conn: sqlite3.Connection, url: str, data: dict):
         data.get("salary_min"),
         data.get("salary_max"),
         data.get("salary_currency", "USD"),
+        data.get("bonus"),
         data.get("description_html"),
         data.get("description_plain"),
     ]
@@ -162,6 +170,7 @@ def save_enrichment(conn: sqlite3.Connection, url: str, data: dict):
             salary_min = ?,
             salary_max = ?,
             salary_currency = ?,
+            bonus = ?,
             description_html = ?,
             description_plain = ?,
             {company_update}
@@ -217,7 +226,7 @@ def get_exportable_jobs(conn: sqlite3.Connection) -> list[dict]:
     rows = conn.execute(
         """SELECT url, title, company_slug, company_name, location,
             ats_platform, skill_level, departments, is_recruiter,
-            posted_date, salary_min, salary_max, salary_currency,
+            posted_date, salary_min, salary_max, salary_currency, bonus,
             description_html, description_plain, first_seen_at,
             enriched_at, upstream_scraped_at
         FROM jobs

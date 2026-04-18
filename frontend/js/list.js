@@ -59,20 +59,25 @@ export function renderJobList(jobs, page, container) {
       const salary = formatSalary(job.salary_min, job.salary_max, job.salary_currency);
       const time = job._distance != null ? `${job._distance} mi` : relativeTime(job.posted_date || job.first_seen_at);
       const depts = (job.departments || []).join(", ");
+
+      const shiftLabels = { days: "Days", nights: "Nights", evenings: "Evenings", weekends: "Weekends", prn: "PRN", rotating: "Rotating" };
+      const shiftLabel = job.shift ? shiftLabels[job.shift] || job.shift : null;
+
       const metaParts = [
         job.company_name,
         depts,
+        shiftLabel,
         salary ? `<span class="salary">${salary}</span>` : null,
       ].filter(Boolean);
 
-      const shiftLabels = { days: "Days", nights: "Nights", evenings: "Evenings", weekends: "Weekends", prn: "PRN", rotating: "Rotating" };
-      const shiftBadge = job.shift ? `<span class="shift-badge">${shiftLabels[job.shift] || job.shift}</span>` : "";
+      const bonusFmt = job.bonus ? `$${Math.round(job.bonus / 100).toLocaleString()}` : null;
+      const bonusBadge = bonusFmt ? `<span class="bonus-badge">${bonusFmt} Bonus</span>` : "";
 
       const href = `/listing/${job.slug || job.id}/`;
       return `<a class="job-row" href="${href}">
         ${avatarHtml(job.company_name)}
         <div class="job-info">
-          <div class="job-title">${escapeHtml(job.title)} ${shiftBadge}</div>
+          <div class="job-title">${escapeHtml(job.title)} ${bonusBadge}</div>
           <div class="job-meta">${metaParts.join(" &middot; ")}</div>
         </div>
         <div class="job-right">

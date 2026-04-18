@@ -297,6 +297,7 @@ def _build_list_entry(job: dict) -> dict:
         "state": state,
         "metro": metro,
         "shift": shift,
+        "bonus": job.get("bonus"),
         "ats_platform": job["ats_platform"],
         "departments": json.loads(job["departments"]) if job.get("departments") else [],
         "is_recruiter": bool(job.get("is_recruiter")),
@@ -335,21 +336,34 @@ def _interleave_by_company(jobs: list[dict]) -> list[dict]:
     return result
 
 
+_SHIFT_LABELS = {"days": "Days", "nights": "Nights", "evenings": "Evenings",
+                 "weekends": "Weekends", "prn": "PRN", "rotating": "Rotating"}
+
+
 def _render_job_rows_html(jobs: list[dict], limit: int = 25, css_prefix: str = "") -> str:
     """Render job list rows as static HTML for SEO."""
     rows = []
     for job in jobs[:limit]:
         salary = _format_salary_html(job.get("salary_min"), job.get("salary_max"))
         time_str = _relative_time(job.get("posted_date") or job.get("first_seen_at"))
+        shift = _SHIFT_LABELS.get(job.get("shift") or "")
         meta_parts = [escape(job["company_name"] or "")]
+        if shift:
+            meta_parts.append(shift)
         if salary:
             meta_parts.append(f'<span class="salary">{salary}</span>')
+
+        bonus = job.get("bonus")
+        bonus_badge = ""
+        if bonus:
+            bonus_dollars = bonus // 100
+            bonus_badge = f' <span class="bonus-badge">${bonus_dollars:,} Bonus</span>'
 
         avatar = _avatar_html(job["company_name"], css_prefix)
         rows.append(f'''<a class="job-row" href="/listing/{job["slug"]}/">
   {avatar}
   <div class="job-info">
-    <div class="job-title">{escape(job["title"])}</div>
+    <div class="job-title">{escape(job["title"])}{bonus_badge}</div>
     <div class="job-meta">{" &middot; ".join(meta_parts)}</div>
   </div>
   <div class="job-right">

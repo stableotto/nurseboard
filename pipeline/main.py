@@ -111,7 +111,7 @@ def main():
     # 5b. Re-parse salary for enriched jobs missing salary data
     logger.info("=== Salary Re-parse ===")
     conn = get_connection(DB_PATH)
-    from pipeline.salary import parse_salary
+    from pipeline.salary import parse_salary, parse_bonus
     no_salary = conn.execute(
         """SELECT url, description_plain FROM jobs
         WHERE enriched_at IS NOT NULL AND removed_at IS NULL
@@ -130,6 +130,27 @@ def main():
     if reparsed:
         conn.commit()
     logger.info("  Re-parsed salary for %d/%d jobs missing salary", reparsed, len(no_salary))
+
+    # 5c. Parse sign-on bonuses from descriptions
+    logger.info("=== Bonus Parse ===")
+    no_bonus = conn.execute(
+        """SELECT url, description_plain FROM jobs
+        WHERE enriched_at IS NOT NULL AND removed_at IS NULL
+          AND bonus IS NULL AND description_plain IS NOT NULL
+          AND description_plain != ''"""
+    ).fetchall()
+    bonus_found = 0
+    for row in no_bonus:
+        bonus = parse_bonus(row["description_plain"])
+        if bonus:
+            conn.execute(
+                "UPDATE jobs SET bonus = ?, updated_at = datetime('now') WHERE url = ?",
+                (bonus, row["url"]),
+            )
+            bonus_found += 1
+    if bonus_found:
+        conn.commit()
+    logger.info("  Found sign-on bonus in %d/%d jobs", bonus_found, len(no_bonus))
 
     # 6. Clean up: delete jobs that failed enrichment (stale/gone from ATS)
     cleaned = delete_unenriched(conn)
