@@ -18,6 +18,7 @@ from pipeline.enrichers.ashby import enrich_ashby
 from pipeline.enrichers.workday import enrich_workday
 from pipeline.enrichers.bamboohr import enrich_bamboohr
 from pipeline.enrichers.oracle_hcm import enrich_oracle_hcm
+from pipeline.enrichers.icims import enrich_icims
 # from pipeline.enrichers.neogov import enrich_neogov  # Disabled: HTML scraping, rate-limited
 
 logger = logging.getLogger(__name__)
@@ -30,6 +31,7 @@ ENRICHERS = {
     "workday": enrich_workday,
     "bamboohr": enrich_bamboohr,
     "oracle_hcm": enrich_oracle_hcm,
+    "icims": enrich_icims,
 }
 
 
@@ -52,7 +54,7 @@ MAX_ENRICH_MINUTES = 30  # Hard time limit per ATS enricher
 MAX_TOTAL_FAILURES = 200  # Give up if too many total failures (not just consecutive)
 
 
-def enrich_ats(db_path: str, ats: str, enrich_fn, limit: int = 5000) -> dict:
+def enrich_ats(db_path: str, ats: str, enrich_fn, limit: int = 10000) -> dict:
     """Enrich jobs for a single ATS platform. Creates its own DB connection."""
     conn = get_connection(db_path)
     try:

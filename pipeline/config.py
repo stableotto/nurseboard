@@ -179,6 +179,7 @@ RATE_LIMITS = {
     "workable": 3,
     "bamboohr": 2,
     "oracle_hcm": 3,
+    "icims": 3,
     "neogov": 2,
 }
 
