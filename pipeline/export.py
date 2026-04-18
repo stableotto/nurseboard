@@ -390,7 +390,7 @@ def _page_shell(title: str, meta_desc: str, canonical: str, css_path: str,
         <a href="/" class="logo">ScrubShifts</a>
         <nav class="header-nav">
           <a href="/jobs/rn/">RN Jobs</a>
-          <a href="/jobs/nurse-practitioner/">NP Jobs</a>
+          <a href="/jobs/physical-therapist/">PT Jobs</a>
           <a href="/jobs/cna/">CNA Jobs</a>
           <a href="/alerts.html">Alerts</a>
           <a href="/promote.html">For Employers</a>
@@ -405,26 +405,26 @@ def _page_shell(title: str, meta_desc: str, canonical: str, css_path: str,
     <div class="container">
       <div class="footer-grid">
         <div class="footer-col">
-          <h4>By Role</h4>
+          <h4>Nursing</h4>
           <a href="/jobs/rn/">Registered Nurse</a>
           <a href="/jobs/nurse-practitioner/">Nurse Practitioner</a>
           <a href="/jobs/lpn/">LPN</a>
-          <a href="/jobs/lvn/">LVN</a>
           <a href="/jobs/cna/">CNA</a>
           <a href="/jobs/crna/">CRNA</a>
-          <a href="/jobs/case-manager/">Case Manager</a>
-          <a href="/jobs/nurse-manager/">Nurse Manager</a>
-        </div>
-        <div class="footer-col">
-          <h4>By Specialty</h4>
           <a href="/jobs/icu-nurse/">ICU Nurse</a>
           <a href="/jobs/er-nurse/">ER Nurse</a>
-          <a href="/jobs/or-nurse/">OR Nurse</a>
-          <a href="/jobs/med-surg/">Med-Surg</a>
-          <a href="/jobs/oncology-nurse/">Oncology</a>
-          <a href="/jobs/pediatric-nurse/">Pediatric</a>
-          <a href="/jobs/psychiatric-nurse/">Psychiatric</a>
-          <a href="/jobs/home-health/">Home Health</a>
+          <a href="/jobs/travel-nurse/">Travel Nurse</a>
+        </div>
+        <div class="footer-col">
+          <h4>Allied Health</h4>
+          <a href="/jobs/physical-therapist/">Physical Therapist</a>
+          <a href="/jobs/occupational-therapist/">Occupational Therapist</a>
+          <a href="/jobs/speech-language-pathologist/">SLP</a>
+          <a href="/jobs/respiratory-therapist/">Respiratory Therapist</a>
+          <a href="/jobs/radiology-technologist/">Radiology Tech</a>
+          <a href="/jobs/pharmacist/">Pharmacist</a>
+          <a href="/jobs/medical-assistant/">Medical Assistant</a>
+          <a href="/jobs/paramedic/">Paramedic / EMT</a>
         </div>
         <div class="footer-col">
           <h4>Top States</h4>
@@ -439,16 +439,16 @@ def _page_shell(title: str, meta_desc: str, canonical: str, css_path: str,
         </div>
         <div class="footer-col">
           <h4>More</h4>
-          <a href="/jobs/travel-nurse/">Travel Nurse</a>
           <a href="/jobs/remote-nurse/">Remote Jobs</a>
           <a href="/jobs/per-diem/">Per Diem</a>
           <a href="/jobs/night-shift/">Night Shift</a>
           <a href="/jobs/part-time-nurse/">Part-Time</a>
           <a href="/jobs/nursing-with-salary/">Jobs with Salary</a>
+          <a href="/jobs/home-health/">Home Health</a>
         </div>
       </div>
       <div class="footer-bottom">
-        <span>&copy; 2026 ScrubShifts. Nursing jobs, aggregated daily.</span>
+        <span>&copy; 2026 ScrubShifts. Healthcare jobs, aggregated daily.</span>
       </div>
     </div>
   </footer>
@@ -1086,7 +1086,7 @@ def _generate_all_category_pages(list_jobs: list[dict]):
         os.makedirs(page_dir, exist_ok=True)
 
         heading = f"Nursing Jobs in {state_name}"
-        meta_desc = f"Browse {len(state_jobs)} nursing jobs in {state_name}. Updated daily with salary data and direct application links."
+        meta_desc = f"Browse {len(state_jobs)} healthcare jobs in {state_name}. Updated daily with salary data and direct application links."
 
         # Role links within this state
         state_role_links = []
@@ -1097,7 +1097,7 @@ def _generate_all_category_pages(list_jobs: list[dict]):
                     state_role_links.append((f"/jobs/{s}/{state_slug}/", d, cnt))
         state_role_links.sort(key=lambda x: -x[2])
 
-        state_seo = f"<p>We track nursing positions in {state_name} from {companies} healthcare employers. Roles include RN, LPN, CNA, nurse practitioner, and more.</p>"
+        state_seo = f"<p>We track nursing and allied health positions in {state_name} from {companies} healthcare employers. Roles include RN, LPN, CNA, PT, OT, SLP, and more.</p>"
         state_seo += _build_related_links_html(f"Roles in {state_name}", state_role_links[:12])
 
         html = _category_page_html(
@@ -1139,14 +1139,14 @@ def _generate_all_category_pages(list_jobs: list[dict]):
                     metro_role_links.append((f"/jobs/{s}/", d, cnt))
         metro_role_links.sort(key=lambda x: -x[2])
 
-        metro_seo = f"<p>We track nursing positions in the {metro_name} metro area from {companies} healthcare employers.</p>"
+        metro_seo = f"<p>We track nursing and allied health positions in the {metro_name} metro area from {companies} healthcare employers.</p>"
         metro_seo += _build_related_links_html(f"Roles in {metro_name}", metro_role_links[:12])
 
         page_dir = os.path.join(FRONTEND_DIR, "jobs", "metro", metro_slug)
         os.makedirs(page_dir, exist_ok=True)
 
         heading = f"Nursing Jobs in {metro_name}"
-        meta_desc = f"Browse {len(metro_jobs)} nursing jobs in the {metro_name} metro area. Updated daily with salary data and direct application links."
+        meta_desc = f"Browse {len(metro_jobs)} healthcare jobs in the {metro_name} metro area. Updated daily with salary data and direct application links."
 
         html = _category_page_html(
             heading=heading,
@@ -1193,11 +1193,11 @@ def _generate_all_category_pages(list_jobs: list[dict]):
         os.makedirs(page_dir, exist_ok=True)
 
         heading = f"{company_name} Nursing Jobs"
-        meta_desc = f"Browse {len(company_jobs)} nursing jobs at {company_name}. Updated daily with salary data and direct application links."
+        meta_desc = f"Browse {len(company_jobs)} healthcare jobs at {company_name}. Updated daily with salary data and direct application links."
 
         seo_block = f"""<section class="seo-content">
       <h2>About {escape(heading)}</h2>
-      <p>ScrubShifts tracks <strong>{len(company_jobs)}</strong> nursing positions at {escape(company_name)}, updated daily with salary data, full descriptions, and direct application links.</p>
+      <p>ScrubShifts tracks <strong>{len(company_jobs)}</strong> healthcare positions at {escape(company_name)}, updated daily with salary data, full descriptions, and direct application links.</p>
     </section>
     {related_html}"""
 
@@ -1277,8 +1277,8 @@ def _generate_homepage(list_jobs: list[dict]):
     hub_states = _build_hub_section_html("Browse by State", state_links[:20])
     hub_companies = _build_hub_section_html("Top Employers", company_links)
     homepage = _page_shell(
-        title="ScrubShifts - Nursing Jobs Aggregated Daily from 500+ Employers",
-        meta_desc=f"Browse {len(list_jobs)} nursing jobs aggregated daily from top healthcare employers. RN, LPN, CNA, NP, travel nurse, and more. Salary data and direct application links.",
+        title="ScrubShifts - Healthcare Jobs Aggregated Daily from 500+ Employers",
+        meta_desc=f"Browse {len(list_jobs)} nursing and allied health jobs aggregated daily from top healthcare employers. RN, PT, OT, SLP, CNA, and more. Salary data and direct application links.",
         canonical=f"{SITE_URL}/",
         css_path="css/style.css",
         js_path="js",
@@ -1286,8 +1286,8 @@ def _generate_homepage(list_jobs: list[dict]):
         body=f'''    <section class="hero">
       <p class="hero-eyebrow">Updated daily.</p>
       <div class="hero-content">
-        <h1>Nursing jobs.<br>Direct from the employer.</h1>
-        <p class="hero-blurb">Every job here links straight to the employer's career page. No recruiters, no staffing agencies, no middlemen. We scan thousands of company career pages daily so you can skip the noise and apply directly.</p>
+        <h1>Healthcare jobs.<br>Direct from the employer.</h1>
+        <p class="hero-blurb">Nursing and allied health jobs, straight from the employer's career page. No recruiters, no staffing agencies, no middlemen. We scan thousands of company career pages daily so you can skip the noise and apply directly.</p>
       </div>
     </section>
 
@@ -1298,6 +1298,7 @@ def _generate_homepage(list_jobs: list[dict]):
     <div class="filter-row">
       <select id="filter-role" class="filter-select">
         <option value="">All Roles</option>
+        <optgroup label="Nursing">
         <option value="rn">RN - Registered Nurse</option>
         <option value="lpn-lvn">LPN / LVN</option>
         <option value="cna">CNA</option>
@@ -1318,6 +1319,24 @@ def _generate_homepage(list_jobs: list[dict]):
         <option value="midwife">Midwife</option>
         <option value="educator">Nurse Educator</option>
         <option value="telehealth">Telehealth / Remote</option>
+        </optgroup>
+        <optgroup label="Allied Health">
+        <option value="physical-therapist">Physical Therapist</option>
+        <option value="occupational-therapist">Occupational Therapist</option>
+        <option value="speech-language-pathologist">Speech-Language Pathologist</option>
+        <option value="respiratory-therapist">Respiratory Therapist</option>
+        <option value="radiology-technologist">Radiology / Imaging Tech</option>
+        <option value="lab-technician">Lab Technician</option>
+        <option value="pharmacist">Pharmacist / Pharm Tech</option>
+        <option value="medical-assistant">Medical Assistant</option>
+        <option value="surgical-technologist">Surgical Technologist</option>
+        <option value="paramedic">Paramedic / EMT</option>
+        <option value="dental-hygienist">Dental Hygienist</option>
+        <option value="phlebotomist">Phlebotomist</option>
+        <option value="dietitian">Dietitian / Nutritionist</option>
+        <option value="social-worker">Healthcare Social Worker</option>
+        <option value="athletic-trainer">Athletic Trainer</option>
+        </optgroup>
       </select>
       <div class="radius-group">
         <input type="text" id="filter-zip" class="zip-input" placeholder="Zip code" maxlength="5" inputmode="numeric" pattern="[0-9]*">
@@ -1337,7 +1356,7 @@ def _generate_homepage(list_jobs: list[dict]):
       </label>
     </div>
 
-    <div id="result-count" class="result-count">{len(list_jobs):,} nursing jobs</div>
+    <div id="result-count" class="result-count">{len(list_jobs):,} healthcare jobs</div>
 
     <div id="job-list" class="job-list">
 {pre_rendered}

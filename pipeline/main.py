@@ -12,7 +12,7 @@ from pipeline.download import download_upstream_jobs
 from pipeline.enrich import enrich_all
 from pipeline.export import export_for_frontend
 from pipeline.freshness import check_freshness
-from pipeline.filter import filter_nursing_jobs
+from pipeline.filter import filter_healthcare_jobs
 from pipeline.scrape_workday import scrape_extra_workday
 from pipeline.scrape_oracle_hcm import scrape_oracle_hcm
 # from pipeline.scrape_neogov import scrape_neogov  # Disabled: HTML scraping, rate-limited
@@ -26,33 +26,33 @@ logger = logging.getLogger(__name__)
 
 
 def main():
-    logger.info("Starting nursing job pipeline")
+    logger.info("Starting healthcare job pipeline")
 
     # 1. Download upstream jobs
     all_jobs = download_upstream_jobs()
 
-    # 2. Filter for nursing jobs
-    nursing_jobs = filter_nursing_jobs(all_jobs)
-    if not nursing_jobs:
-        logger.warning("No nursing jobs found from upstream!")
+    # 2. Filter for healthcare jobs (nursing + allied health)
+    healthcare_jobs = filter_healthcare_jobs(all_jobs)
+    if not healthcare_jobs:
+        logger.warning("No healthcare jobs found from upstream!")
 
     # 2b. Scrape extra Workday companies
     extra_jobs = scrape_extra_workday()
     if extra_jobs:
-        nursing_jobs.extend(extra_jobs)
+        healthcare_jobs.extend(extra_jobs)
         logger.info("Added %d extra Workday jobs", len(extra_jobs))
 
     # 2c. Scrape Oracle HCM career sites
     oracle_jobs = scrape_oracle_hcm()
     if oracle_jobs:
-        nursing_jobs.extend(oracle_jobs)
+        healthcare_jobs.extend(oracle_jobs)
         logger.info("Added %d Oracle HCM jobs", len(oracle_jobs))
 
     if extra_jobs or oracle_jobs:
-        logger.info("Total nursing jobs (upstream + extra): %d", len(nursing_jobs))
+        logger.info("Total healthcare jobs (upstream + extra): %d", len(healthcare_jobs))
 
-    if not nursing_jobs:
-        logger.warning("No nursing jobs found at all! Exiting.")
+    if not healthcare_jobs:
+        logger.warning("No healthcare jobs found at all! Exiting.")
         sys.exit(1)
 
     # 3. Upsert into SQLite — track which are new this run
@@ -71,7 +71,7 @@ def main():
     new_by_ats = {}
     updated_count = 0
     current_urls = set()
-    for job in nursing_jobs:
+    for job in healthcare_jobs:
         current_urls.add(job["url"])
         if upsert_job(conn, job):
             new_count += 1
@@ -81,7 +81,7 @@ def main():
             updated_count += 1
     conn.commit()
     logger.info("=== Upsert Breakdown ===")
-    logger.info("  Upstream nursing jobs: %d", len(nursing_jobs))
+    logger.info("  Upstream healthcare jobs: %d", len(healthcare_jobs))
     logger.info("  Already in DB (updated): %d", updated_count)
     logger.info("  New jobs inserted: %d", new_count)
     for ats, count in sorted(new_by_ats.items(), key=lambda x: -x[1]):

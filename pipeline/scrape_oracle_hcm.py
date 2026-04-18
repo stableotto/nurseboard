@@ -24,7 +24,7 @@ from urllib.parse import quote
 
 import requests
 
-from pipeline.filter import is_nursing_job
+from pipeline.filter import is_healthcare_job
 from pipeline.salary import parse_salary
 
 logger = logging.getLogger(__name__)
@@ -194,7 +194,7 @@ def _fetch_site_jobs(host: str, site_number: str) -> list[dict]:
             if shift:
                 job["shift"] = shift
 
-            if is_nursing_job(job):
+            if is_healthcare_job(job):
                 all_jobs.append(job)
 
         offset += JOBS_PER_PAGE

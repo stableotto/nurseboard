@@ -3,6 +3,7 @@
  */
 
 const ROLE_PATTERNS = {
+  // Nursing
   "rn": /\bRN\b|\bregistered\s+nurse\b/i,
   "lpn-lvn": /\bLPN\b|\bLVN\b|\blicensed\s+(?:practical|vocational)\s+nurse\b/i,
   "cna": /\bCNA\b|\bcertified\s+nurs(?:e|ing)\s+assistant\b|\bnurse\s+aide\b/i,
@@ -23,6 +24,25 @@ const ROLE_PATTERNS = {
   "midwife": /\bmidwi(?:fe|very|ves)\b/i,
   "educator": /\bnurse\s+educator\b|\bnursing\s+(?:instructor|faculty|professor)\b|\bclinical\s+educator\b/i,
   "telehealth": /\bremote\b|\btelehealth\b|\btelemedicine\b|\bvirtual\s+(?:care|nurse|nursing)\b/i,
+  // Allied Health — Therapy
+  "physical-therapist": /\bphysical\s+therap(?:ist|y)\b|\bDPT\b|\bPTA\b/i,
+  "occupational-therapist": /\boccupational\s+therap(?:ist|y)\b|\bOTR\b|\bCOTA\b/i,
+  "speech-language-pathologist": /\bSLP\b|\bspeech[\s\-]?language\s+patholog(?:ist|y)\b|\bspeech\s+therap(?:ist|y)\b/i,
+  "respiratory-therapist": /\brespiratory\s+therap(?:ist|y)\b|\bRRT\b|\bCRT\b/i,
+  // Allied Health — Diagnostic / Lab
+  "radiology-technologist": /\brad(?:iologic(?:al)?|iology)\s+tech|\bx[\s\-]?ray\s+tech|\bCT\s+tech|\bMRI\s+tech|\bsonograph|\bultrasound\s+tech|\bdiagnostic\s+imaging/i,
+  "lab-technician": /\bMLT\b|\bMLS\b|\bCLS\b|\bmedical\s+lab(?:oratory)?\s+(?:tech|scientist)|\blab(?:oratory)?\s+tech(?:nician|nologist)?/i,
+  "phlebotomist": /\bphlebotom(?:ist|y)\b/i,
+  // Allied Health — Pharmacy / Nutrition
+  "pharmacist": /\bPharmD\b|\bRPh\b|\bpharmac(?:ist|y\s+tech)|\bpharmacy\s+tech(?:nician)?/i,
+  "dietitian": /\bRDN\b|\bdietit(?:ian|ion)\b|\bnutritionist\b|\bclinical\s+nutrition\b/i,
+  // Allied Health — Other
+  "medical-assistant": /\bmedical\s+assistant\b|\bCMA\b|\bclinical\s+medical\s+assistant\b/i,
+  "surgical-technologist": /\bsurg(?:ical)?\s+tech(?:nolog(?:ist|y))?\b|\bCST\b|\boperating\s+room\s+tech\b/i,
+  "paramedic": /\bparamedic\b|\bEMT\b|\bemergency\s+medical\s+tech(?:nician)?/i,
+  "dental-hygienist": /\bdental\s+hygien(?:ist|e)\b|\bRDH\b/i,
+  "social-worker": /\bLCSW\b|\bLMSW\b|\bmedical\s+social\s+worker\b|\bclinical\s+social\s+worker\b/i,
+  "athletic-trainer": /\bathletic\s+train(?:er|ing)\b|\bATC\b/i,
 };
 
 export function filterJobs(jobs, { query, role, state, metro, hasSalary }) {

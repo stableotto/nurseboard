@@ -16,7 +16,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import requests
 
 from pipeline.config import TITLE_PATTERN, DEPARTMENT_KEYWORDS
-from pipeline.filter import is_nursing_job
+from pipeline.filter import is_healthcare_job
 
 logger = logging.getLogger(__name__)
 
@@ -119,8 +119,8 @@ def _fetch_company_jobs(tenant: str, wd_num: str, site_id: str) -> list[dict]:
                 "scraped_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             }
 
-            # Filter for nursing
-            if is_nursing_job(job):
+            # Filter for healthcare (nursing + allied health)
+            if is_healthcare_job(job):
                 all_jobs.append(job)
 
         offset += JOBS_PER_PAGE

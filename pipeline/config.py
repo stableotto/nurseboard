@@ -16,8 +16,9 @@ JOBS_JSON = f"{EXPORT_DIR}/jobs.json"
 META_JSON = f"{EXPORT_DIR}/meta.json"
 DETAIL_DIR = f"{EXPORT_DIR}/jobs"
 
-# Nursing keyword patterns (case-insensitive, word-boundary)
-TITLE_KEYWORDS = [
+# Healthcare keyword patterns (case-insensitive, word-boundary)
+# Nursing
+NURSING_TITLE_KEYWORDS = [
     r"\bRN\b",
     r"\bLPN\b",
     r"\bLVN\b",
@@ -43,10 +44,93 @@ TITLE_KEYWORDS = [
     r"\bnurse\s+(?:manager|educator|navigator)\b",
 ]
 
+# Allied health professionals
+ALLIED_HEALTH_TITLE_KEYWORDS = [
+    # Physical Therapy
+    r"\bPT\b(?=.*(?:therap|rehab|physical|clinic|hospital|health|outpatient|inpatient))",
+    r"\bDPT\b",
+    r"\bPTA\b",
+    r"\bphysical\s+therap(?:ist|y)\b",
+    # Occupational Therapy
+    r"\bOT\b(?=.*(?:therap|rehab|occupational|clinic|hospital|health))",
+    r"\bOTR\b",
+    r"\bCOTA\b",
+    r"\boccupational\s+therap(?:ist|y)\b",
+    # Speech-Language Pathology
+    r"\bSLP\b",
+    r"\bCCC[\-\s]?SLP\b",
+    r"\bspeech[\s\-]?language\s+patholog(?:ist|y)\b",
+    r"\bspeech\s+therap(?:ist|y)\b",
+    # Respiratory Therapy
+    r"\bRRT\b",
+    r"\bCRT\b",
+    r"\brespiratory\s+therap(?:ist|y)\b",
+    # Radiology / Imaging
+    r"\brad(?:iologic(?:al)?|iology)\s+tech(?:nolog(?:ist|y))?",
+    r"\bRT\s*\(R\)",
+    r"\bx[\-\s]?ray\s+tech\b",
+    r"\bCT\s+tech(?:nolog(?:ist|y))?\b",
+    r"\bMRI\s+tech(?:nolog(?:ist|y))?\b",
+    r"\bsonograph(?:er|y)\b",
+    r"\bultrasound\s+tech\b",
+    r"\bmammograph(?:er|y)\s+tech\b",
+    r"\bdiagnostic\s+imaging\b",
+    # Medical Laboratory
+    r"\bMLT\b",
+    r"\bMLS\b",
+    r"\bCLS\b",
+    r"\bmedical\s+lab(?:oratory)?\s+(?:tech|scientist)\b",
+    r"\bclinical\s+lab(?:oratory)?\s+scientist\b",
+    r"\blab(?:oratory)?\s+tech(?:nician|nologist)?\b",
+    # Pharmacy
+    r"\bPharmD\b",
+    r"\bRPh\b",
+    r"\bpharmac(?:ist|y\s+tech)\b",
+    r"\bpharmacy\s+tech(?:nician)?\b",
+    # Dietetics / Nutrition
+    r"\bRD\b(?=.*(?:diet|nutri|food|clinical|health))",
+    r"\bRDN\b",
+    r"\bdietit(?:ian|ion)\b",
+    r"\bnutritionist\b",
+    r"\bclinical\s+nutrition\b",
+    # Social Work (clinical/medical)
+    r"\bLCSW\b",
+    r"\bLMSW\b",
+    r"\bmedical\s+social\s+worker\b",
+    r"\bclinical\s+social\s+worker\b",
+    r"\bhealthcare\s+social\s+worker\b",
+    # Paramedic / EMT
+    r"\bparamedic\b",
+    r"\bEMT\b",
+    r"\bemergency\s+medical\s+tech(?:nician)?\b",
+    # Surgical Technology
+    r"\bsurg(?:ical)?\s+tech(?:nolog(?:ist|y))?\b",
+    r"\bCST\b",
+    r"\boperating\s+room\s+tech\b",
+    # Dental Hygiene
+    r"\bdental\s+hygien(?:ist|e)\b",
+    r"\bRDH\b",
+    # Phlebotomy
+    r"\bphlebotom(?:ist|y)\b",
+    # Medical Assistant
+    r"\bCMA\b",
+    r"\bmedical\s+assistant\b",
+    r"\bclinical\s+medical\s+assistant\b",
+    # Athletic Training
+    r"\bathletic\s+train(?:er|ing)\b",
+    r"\bATC\b",
+]
+
+TITLE_KEYWORDS = NURSING_TITLE_KEYWORDS + ALLIED_HEALTH_TITLE_KEYWORDS
+
 TITLE_PATTERN = re.compile("|".join(TITLE_KEYWORDS), re.IGNORECASE)
 
 DEPARTMENT_KEYWORDS = re.compile(
-    r"\b(?:nursing|clinical|patient\s+care|medical|health\s*care)\b",
+    r"\b(?:nursing|clinical|patient\s+care|medical|health\s*care"
+    r"|therapy|therapies|rehabilitation|rehab|radiology|imaging"
+    r"|laboratory|pharmacy|nutrition|dietetics|social\s+work"
+    r"|respiratory|surgical\s+services|emergency\s+medical"
+    r"|dental|allied\s+health)\b",
     re.IGNORECASE,
 )
 
@@ -138,7 +222,26 @@ SEO_CATEGORIES = [
     ("per-diem", "Per Diem Nurse", r"\bper\s*[\-\s]?diem\b|\bPRN\b", "Browse {count} per diem and PRN nursing jobs updated daily."),
     ("part-time-nurse", "Part-Time Nurse", r"\bpart[\s\-]?time\b", "Browse {count} part-time nursing jobs updated daily."),
     # Pay
-    ("nursing-with-salary", "Nursing Jobs with Salary", None, "Browse {count} nursing jobs with published salary ranges. Know your pay upfront."),
+    ("nursing-with-salary", "Jobs with Salary", None, "Browse {count} healthcare jobs with published salary ranges. Know your pay upfront."),
+    # Allied Health — Therapy
+    ("physical-therapist", "Physical Therapist", r"\bphysical\s+therap(?:ist|y)\b|\bPT\b(?=.*(?:therap|rehab|physical|clinic|hospital|health))|\bDPT\b|\bPTA\b", "Browse {count} physical therapist jobs. PT and PTA positions updated daily."),
+    ("occupational-therapist", "Occupational Therapist", r"\boccupational\s+therap(?:ist|y)\b|\bOTR\b|\bCOTA\b", "Browse {count} occupational therapist jobs. OT and COTA positions updated daily."),
+    ("speech-language-pathologist", "Speech-Language Pathologist", r"\bSLP\b|\bspeech[\s\-]?language\s+patholog(?:ist|y)\b|\bspeech\s+therap(?:ist|y)\b|\bCCC[\-\s]?SLP\b", "Browse {count} speech-language pathologist jobs. SLP positions updated daily."),
+    ("respiratory-therapist", "Respiratory Therapist", r"\brespiratory\s+therap(?:ist|y)\b|\bRRT\b|\bCRT\b", "Browse {count} respiratory therapist jobs. RT positions updated daily."),
+    # Allied Health — Diagnostic / Lab
+    ("radiology-technologist", "Radiology Technologist", r"\brad(?:iologic(?:al)?|iology)\s+tech|\bRT\s*\(R\)|\bx[\-\s]?ray\s+tech|\bCT\s+tech|\bMRI\s+tech|\bsonograph|\bultrasound\s+tech|\bmammograph|\bdiagnostic\s+imaging", "Browse {count} radiology and imaging technologist jobs updated daily."),
+    ("lab-technician", "Lab Technician", r"\bMLT\b|\bMLS\b|\bCLS\b|\bmedical\s+lab(?:oratory)?\s+(?:tech|scientist)|\bclinical\s+lab(?:oratory)?\s+scientist|\blab(?:oratory)?\s+tech(?:nician|nologist)?", "Browse {count} medical laboratory technician and scientist jobs updated daily."),
+    ("phlebotomist", "Phlebotomist", r"\bphlebotom(?:ist|y)\b", "Browse {count} phlebotomist jobs updated daily."),
+    # Allied Health — Pharmacy / Nutrition
+    ("pharmacist", "Pharmacist", r"\bPharmD\b|\bRPh\b|\bpharmac(?:ist|y\s+tech)|\bpharmacy\s+tech(?:nician)?", "Browse {count} pharmacist and pharmacy technician jobs updated daily."),
+    ("dietitian", "Dietitian", r"\bRDN?\b(?=.*(?:diet|nutri|food|clinical|health))|\bdietit(?:ian|ion)\b|\bnutritionist\b|\bclinical\s+nutrition\b", "Browse {count} dietitian and nutritionist jobs updated daily."),
+    # Allied Health — Other
+    ("medical-assistant", "Medical Assistant", r"\bmedical\s+assistant\b|\bCMA\b|\bclinical\s+medical\s+assistant\b", "Browse {count} medical assistant jobs updated daily."),
+    ("surgical-technologist", "Surgical Technologist", r"\bsurg(?:ical)?\s+tech(?:nolog(?:ist|y))?\b|\bCST\b|\boperating\s+room\s+tech\b", "Browse {count} surgical technologist jobs updated daily."),
+    ("paramedic", "Paramedic / EMT", r"\bparamedic\b|\bEMT\b|\bemergency\s+medical\s+tech(?:nician)?", "Browse {count} paramedic and EMT jobs updated daily."),
+    ("dental-hygienist", "Dental Hygienist", r"\bdental\s+hygien(?:ist|e)\b|\bRDH\b", "Browse {count} dental hygienist jobs updated daily."),
+    ("social-worker", "Healthcare Social Worker", r"\bLCSW\b|\bLMSW\b|\bmedical\s+social\s+worker\b|\bclinical\s+social\s+worker\b|\bhealthcare\s+social\s+worker\b", "Browse {count} healthcare social worker jobs updated daily."),
+    ("athletic-trainer", "Athletic Trainer", r"\bathletic\s+train(?:er|ing)\b|\bATC\b", "Browse {count} athletic trainer jobs updated daily."),
 ]
 
 # State abbreviation to URL slug (lowercase full name)

@@ -1,12 +1,13 @@
 """Supplemental NEOGOV (governmentjobs.com) scraper.
 
-Uses the global /jobs endpoint with nursing keywords for discovery across
+Uses the global /jobs endpoint with healthcare keywords for discovery across
 ALL agencies, then fetches individual job detail pages to extract JSON-LD
 (schema.org/JobPosting) for structured data.
 
 Two-pass approach:
-  Pass 1 — Global keyword search for nursing jobs. Gets job URLs, titles,
-           locations, salaries, and agency names from listing HTML.
+  Pass 1 — Global keyword search for nursing and allied health jobs. Gets
+           job URLs, titles, locations, salaries, and agency names from
+           listing HTML.
   Pass 2 — Detail pages fetched for JSON-LD to get full descriptions.
            Jobs are pre-enriched at scrape time.
 """
@@ -22,22 +23,24 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import requests
 
-from pipeline.filter import is_nursing_job
+from pipeline.filter import is_healthcare_job
 
 logger = logging.getLogger(__name__)
 
 MAX_PAGES_PER_KEYWORD = 150  # Safety limit: 150 * 10 = 1500 per keyword
-DETAIL_WORKERS = 5  # Parallel detail page fetchers
+DETAIL_WORKERS = 3  # Conservative — NEOGOV rate-limits aggressively
 JOBS_PER_PAGE = 10
+DETAIL_DELAY = (1.0, 2.0)  # Delay between detail fetches per worker
+PAGE_DELAY = (1.0, 2.0)  # Delay between listing pages
 
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
 ]
 
-# Nursing keywords to search globally — aligned with TITLE_KEYWORDS and SEO_CATEGORIES
+# Healthcare keywords to search globally — aligned with TITLE_KEYWORDS and SEO_CATEGORIES
 SEARCH_KEYWORDS = [
-    # Core roles
+    # Nursing — Core roles
     "registered nurse",
     "nurse practitioner",
     "LPN",
@@ -46,7 +49,7 @@ SEARCH_KEYWORDS = [
     "nursing",
     "CRNA",
     "APRN",
-    # Specialty
+    # Nursing — Specialty
     "ICU nurse",
     "NICU",
     "med surg",
@@ -55,21 +58,52 @@ SEARCH_KEYWORDS = [
     "oncology nurse",
     "pediatric nurse",
     "labor delivery nurse",
-    # Settings
+    # Nursing — Settings
     "home health nurse",
     "hospice nurse",
     "public health nurse",
-    # Leadership
+    # Nursing — Leadership
     "charge nurse",
     "nurse manager",
     "nurse educator",
     "clinical nurse",
     "director of nursing",
-    # Other matches from title filter
+    # Nursing — Other
     "nurse midwife",
     "nurse navigator",
     "staff nurse",
     "case manager nurse",
+    # Allied Health — Therapy
+    "physical therapist",
+    "physical therapy assistant",
+    "occupational therapist",
+    "occupational therapy assistant",
+    "speech language pathologist",
+    "speech therapist",
+    "respiratory therapist",
+    # Allied Health — Diagnostic / Lab
+    "radiology technologist",
+    "x-ray technologist",
+    "MRI technologist",
+    "CT technologist",
+    "sonographer",
+    "ultrasound technician",
+    "medical laboratory technician",
+    "lab technologist",
+    "phlebotomist",
+    # Allied Health — Pharmacy / Nutrition
+    "pharmacist",
+    "pharmacy technician",
+    "dietitian",
+    "nutritionist",
+    # Allied Health — Other
+    "medical assistant",
+    "surgical technologist",
+    "paramedic",
+    "EMT",
+    "dental hygienist",
+    "clinical social worker",
+    "athletic trainer",
 ]
 
 # Regex to extract job links from the global /jobs HTML fragments
@@ -232,8 +266,8 @@ def _discover_jobs_for_keyword(keyword: str) -> list[dict]:
         if len(links) < JOBS_PER_PAGE:
             break
 
-        # Polite delay between pages
-        time.sleep(random.uniform(0.5, 1.0))
+        # Polite delay between pages — NEOGOV rate-limits aggressively
+        time.sleep(random.uniform(*PAGE_DELAY))
 
     return stubs
 
@@ -298,7 +332,7 @@ def _fetch_detail(job_stub: dict) -> dict | None:
 
 
 def scrape_neogov() -> list[dict]:
-    """Scrape NEOGOV globally for nursing jobs across all agencies."""
+    """Scrape NEOGOV globally for healthcare jobs across all agencies."""
     logger.info("[neogov] Searching governmentjobs.com globally with %d keywords", len(SEARCH_KEYWORDS))
 
     # Phase 1: Discover jobs across all keywords
@@ -319,7 +353,7 @@ def scrape_neogov() -> list[dict]:
     logger.info("[neogov] Discovered %d unique jobs, fetching details", len(all_stubs))
 
     # Phase 2: Fetch detail pages in parallel
-    all_nursing_jobs = []
+    all_healthcare_jobs = []
     fetched = 0
     failed = 0
 
@@ -331,16 +365,16 @@ def scrape_neogov() -> list[dict]:
         }
         for future in as_completed(futures):
             job = future.result()
-            if job and is_nursing_job(job):
-                all_nursing_jobs.append(job)
+            if job and is_healthcare_job(job):
+                all_healthcare_jobs.append(job)
                 fetched += 1
             elif job:
-                fetched += 1  # Got detail but not nursing
+                fetched += 1  # Got detail but not healthcare match
             else:
                 failed += 1
 
     logger.info(
-        "[neogov] Done: %d details fetched, %d failed, %d nursing jobs found",
-        fetched, failed, len(all_nursing_jobs),
+        "[neogov] Done: %d details fetched, %d failed, %d healthcare jobs found",
+        fetched, failed, len(all_healthcare_jobs),
     )
-    return all_nursing_jobs
+    return all_healthcare_jobs
