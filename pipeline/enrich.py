@@ -48,6 +48,10 @@ class RateLimiter:
         self.last_call = time.monotonic()
 
 
+MAX_ENRICH_MINUTES = 30  # Hard time limit per ATS enricher
+MAX_TOTAL_FAILURES = 200  # Give up if too many total failures (not just consecutive)
+
+
 def enrich_ats(db_path: str, ats: str, enrich_fn, limit: int = 5000) -> dict:
     """Enrich jobs for a single ATS platform. Creates its own DB connection."""
     conn = get_connection(db_path)
@@ -61,8 +65,18 @@ def enrich_ats(db_path: str, ats: str, enrich_fn, limit: int = 5000) -> dict:
         consecutive_failures = 0
         success = 0
         failed = 0
+        start_time = time.monotonic()
 
         for job in jobs:
+            elapsed_min = (time.monotonic() - start_time) / 60
+            if elapsed_min >= MAX_ENRICH_MINUTES:
+                logger.warning("[%s] Time limit reached (%.0fm), stopping with %d/%d enriched", ats, elapsed_min, success, len(jobs))
+                return {"ats": ats, "total": len(jobs), "success": success, "failed": failed, "skipped": True}
+
+            if failed >= MAX_TOTAL_FAILURES:
+                logger.warning("[%s] %d total failures, skipping remaining", ats, failed)
+                return {"ats": ats, "total": len(jobs), "success": success, "failed": failed, "skipped": True}
+
             if consecutive_failures >= CONSECUTIVE_FAIL_SKIP:
                 logger.warning("[%s] %d consecutive failures, skipping remaining", ats, consecutive_failures)
                 return {"ats": ats, "total": len(jobs), "success": success, "failed": failed, "skipped": True}
