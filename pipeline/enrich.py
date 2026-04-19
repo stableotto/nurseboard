@@ -50,8 +50,8 @@ class RateLimiter:
         self.last_call = time.monotonic()
 
 
-MAX_ENRICH_MINUTES = 30  # Hard time limit per ATS enricher
-MAX_TOTAL_FAILURES = 200  # Give up if too many total failures (not just consecutive)
+MAX_ENRICH_MINUTES = 25  # Hard time limit per ATS enricher
+MAX_TOTAL_FAILURES = 50  # Bail fast if ATS is having a bad day, retry next run
 
 
 def enrich_ats(db_path: str, ats: str, enrich_fn, limit: int = 10000) -> dict:
