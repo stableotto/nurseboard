@@ -33,6 +33,11 @@ def main():
 
     # 2. Filter for healthcare jobs (nursing + allied health)
     healthcare_jobs = filter_healthcare_jobs(all_jobs)
+    # Drop iCIMS — upstream sends "Not specified" for all locations
+    before = len(healthcare_jobs)
+    healthcare_jobs = [j for j in healthcare_jobs if (j.get("ats") or "").lower() != "icims"]
+    if before != len(healthcare_jobs):
+        logger.info("Dropped %d iCIMS jobs (no location data)", before - len(healthcare_jobs))
     if not healthcare_jobs:
         logger.warning("No healthcare jobs found from upstream!")
 

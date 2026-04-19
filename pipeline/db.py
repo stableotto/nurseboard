@@ -56,7 +56,10 @@ def get_connection(db_path: str) -> sqlite3.Connection:
     # Migrations for existing databases
     cols = {r[1] for r in conn.execute("PRAGMA table_info(jobs)").fetchall()}
     if "bonus" not in cols:
-        conn.execute("ALTER TABLE jobs ADD COLUMN bonus INTEGER")
+        try:
+            conn.execute("ALTER TABLE jobs ADD COLUMN bonus INTEGER")
+        except sqlite3.OperationalError:
+            pass  # Another connection already added it
 
     return conn
 
