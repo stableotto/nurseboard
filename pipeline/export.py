@@ -402,13 +402,16 @@ def _page_shell(title: str, meta_desc: str, canonical: str, css_path: str,
     <div class="container">
       <div class="header-left">
         <a href="/" class="logo">ScrubShifts</a>
-        <nav class="header-nav">
+        <nav class="header-nav" id="nav-menu">
           <a href="/jobs/rn/">RN Jobs</a>
           <a href="/jobs/physical-therapist/">PT Jobs</a>
           <a href="/jobs/cna/">CNA Jobs</a>
           <a href="/alerts.html">Alerts</a>
           <a href="/promote.html">For Employers</a>
         </nav>
+        <button class="hamburger" id="hamburger" aria-label="Menu" aria-expanded="false">
+          <span></span><span></span><span></span>
+        </button>
       </div>
     </div>
   </header>
@@ -466,6 +469,17 @@ def _page_shell(title: str, meta_desc: str, canonical: str, css_path: str,
       </div>
     </div>
   </footer>
+  <script>
+    (function() {{
+      var h = document.getElementById('hamburger');
+      var n = document.getElementById('nav-menu');
+      if (h && n) h.addEventListener('click', function() {{
+        var open = n.classList.toggle('open');
+        h.classList.toggle('open');
+        h.setAttribute('aria-expanded', open);
+      }});
+    }})();
+  </script>
   <script type="module" src="{js_path}/app.js"></script>
 </body>
 </html>'''
