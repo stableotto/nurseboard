@@ -66,6 +66,7 @@ def enrich_ats(db_path: str, ats: str, enrich_fn, limit: int = 10000) -> dict:
         consecutive_failures = 0
         success = 0
         failed = 0
+        errors = 0  # Only real errors (timeouts, 500s) — not 404s/gone jobs
         start_time = time.monotonic()
 
         for job in jobs:
@@ -74,8 +75,8 @@ def enrich_ats(db_path: str, ats: str, enrich_fn, limit: int = 10000) -> dict:
                 logger.warning("[%s] Time limit reached (%.0fm), stopping with %d/%d enriched", ats, elapsed_min, success, len(jobs))
                 return {"ats": ats, "total": len(jobs), "success": success, "failed": failed, "skipped": True}
 
-            if failed >= MAX_TOTAL_FAILURES:
-                logger.warning("[%s] %d total failures, skipping remaining", ats, failed)
+            if errors >= MAX_TOTAL_FAILURES:
+                logger.warning("[%s] %d real errors, skipping remaining", ats, errors)
                 return {"ats": ats, "total": len(jobs), "success": success, "failed": failed, "skipped": True}
 
             if consecutive_failures >= CONSECUTIVE_FAIL_SKIP:
@@ -98,18 +99,17 @@ def enrich_ats(db_path: str, ats: str, enrich_fn, limit: int = 10000) -> dict:
                     success += 1
                 else:
                     # enricher returned None = job not found / URL didn't match
-                    # Don't count as consecutive failure (likely stale listing)
                     mark_job_gone(conn, job["url"])
                     conn.commit()
-                    failed += 1
+                    failed += 1  # Gone, not an error
             except requests.exceptions.HTTPError as e:
                 if e.response is not None and e.response.status_code == 404:
-                    # Job removed from ATS — not a real failure
+                    # Job removed from ATS — not a real error
                     mark_job_gone(conn, job["url"])
                     conn.commit()
                     failed += 1
                 elif e.response is not None and e.response.status_code == 403:
-                    # Forbidden — likely geo-block or bot detection, skip job but don't panic
+                    # Forbidden — skip job but don't count as real error
                     increment_failure(conn, job["url"])
                     conn.commit()
                     failed += 1
@@ -118,12 +118,14 @@ def enrich_ats(db_path: str, ats: str, enrich_fn, limit: int = 10000) -> dict:
                     increment_failure(conn, job["url"])
                     conn.commit()
                     consecutive_failures += 1
+                    errors += 1
                     failed += 1
             except Exception as e:
                 logger.warning("[%s] Error enriching %s: %s", ats, job["url"], e)
                 increment_failure(conn, job["url"])
                 conn.commit()
                 consecutive_failures += 1
+                errors += 1
                 failed += 1
 
         return {"ats": ats, "total": len(jobs), "success": success, "failed": failed, "skipped": False}
