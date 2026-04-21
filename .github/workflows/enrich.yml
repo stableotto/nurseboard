@@ -5,6 +5,10 @@ on:
     - cron: "30 14 * * *"
   workflow_dispatch:
 
+concurrency:
+  group: pipeline
+  cancel-in-progress: false
+
 jobs:
   enrich:
     runs-on: ubuntu-latest
@@ -26,7 +30,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: data/nursing_jobs.db
-          key: nursing-db-${{ github.run_number }}
+          key: nursing-db-${{ github.run_id }}
           restore-keys: nursing-db-
 
       - name: Enrich, parse bonuses, and export
