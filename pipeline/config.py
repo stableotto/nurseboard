@@ -4,7 +4,7 @@ import re
 
 # Upstream data source
 UPSTREAM_MANIFEST_URL = (
-    "https://raw.githubusercontent.com/Feashliaa/job-board-aggregator/main/data/jobs_manifest.json"
+    "https://raw.githubusercontent.com/Feashliaa/job-board-aggregator/main/data/chunks/jobs_manifest.json"
 )
 
 # Database
