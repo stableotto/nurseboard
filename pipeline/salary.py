@@ -22,6 +22,27 @@ MAX_HOURLY = 250.0
 MIN_ANNUAL = 20_000.0
 MAX_ANNUAL = 500_000.0
 
+# Dollar amounts near these words are not salary — skip them
+_NON_SALARY_PATTERN = re.compile(
+    r"(?:sign[\-\s]?on|signing|recruitment|retention|welcome|hiring)\s*bonus"
+    r"|bonus\s+(?:of\s+)?\$"
+    r"|relocation"
+    r"|repayment|forgiveness|reimbursement|stipend|allowance"
+    r"|tuition|loan|debt"
+    r"|(?:up\s+to\s+)?\$[\d,]+\s*(?:k\b)?\s*(?:bonus|incentive)"
+    r"|revenue|budget|(?:total\s+)?compensation\s+package"
+    r"|benefits?\s+(?:up\s+to|of|worth)",
+    re.IGNORECASE,
+)
+
+
+def _is_non_salary(text: str, match_start: int, match_end: int) -> bool:
+    """Check if the dollar amount near the match is a bonus, repayment, etc."""
+    window_start = max(0, match_start - 60)
+    window_end = min(len(text), match_end + 60)
+    context = text[window_start:window_end]
+    return bool(_NON_SALARY_PATTERN.search(context))
+
 
 def _is_hourly(text: str, match_start: int, match_end: int) -> bool | None:
     """Check if salary near the match is hourly.
@@ -85,7 +106,7 @@ def parse_salary(text: str) -> tuple[int | None, int | None]:
 
     # Try range pattern first: "$50,000 - $75,000" or "$28.00 - $42.00/hr"
     match = SALARY_RANGE_PATTERN.search(text)
-    if match:
+    if match and not _is_non_salary(text, match.start(), match.end()):
         try:
             low = float(match.group(1).replace(",", ""))
             high = float(match.group(2).replace(",", ""))
@@ -101,6 +122,8 @@ def parse_salary(text: str) -> tuple[int | None, int | None]:
 
     # Try single value: "$75,000" or "$45/hr"
     for match in SALARY_SINGLE_PATTERN.finditer(text):
+        if _is_non_salary(text, match.start(), match.end()):
+            continue
         val1_str = match.group(1)
         if not val1_str or not val1_str.strip(","):
             continue

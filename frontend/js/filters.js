@@ -116,7 +116,10 @@ export function formatSalary(min, max, currency) {
     if (dollars >= 1000) return `$${Math.round(dollars / 1000)}k`;
     return `$${Math.round(dollars)}`;
   };
-  if (min != null && max != null) return `${fmt(min)} - ${fmt(max)}`;
+  if (min != null && max != null) {
+    if (min === max) return fmt(min);
+    return `${fmt(min)} - ${fmt(max)}`;
+  }
   if (min != null) return `${fmt(min)}+`;
   return `Up to ${fmt(max)}`;
 }

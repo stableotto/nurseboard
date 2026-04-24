@@ -18,7 +18,6 @@ from pipeline.enrichers.ashby import enrich_ashby
 from pipeline.enrichers.workday import enrich_workday
 from pipeline.enrichers.bamboohr import enrich_bamboohr
 from pipeline.enrichers.oracle_hcm import enrich_oracle_hcm
-# from pipeline.enrichers.icims import enrich_icims  # Disabled: upstream sends "Not specified" for location
 # from pipeline.enrichers.neogov import enrich_neogov  # Disabled: HTML scraping, rate-limited
 
 logger = logging.getLogger(__name__)
@@ -49,7 +48,7 @@ class RateLimiter:
         self.last_call = time.monotonic()
 
 
-MAX_ENRICH_MINUTES = 25  # Hard time limit per ATS enricher
+MAX_ENRICH_MINUTES = 50  # Hard time limit per ATS enricher
 MAX_TOTAL_FAILURES = 50  # Bail fast if ATS is having a bad day, retry next run
 
 

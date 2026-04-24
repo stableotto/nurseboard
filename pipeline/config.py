@@ -179,7 +179,6 @@ RATE_LIMITS = {
     "workable": 3,
     "bamboohr": 2,
     "oracle_hcm": 3,
-    # "icims": 3,  # Disabled: upstream has no location data
     "neogov": 2,
 }
 

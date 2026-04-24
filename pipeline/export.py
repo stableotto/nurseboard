@@ -204,6 +204,8 @@ def _format_salary_html(salary_min, salary_max) -> str:
         d = cents / 100
         return f"${d:,.0f}" if d < 1000 else f"${d/1000:.0f}k"
     if salary_min and salary_max:
+        if salary_min == salary_max:
+            return fmt(salary_min)
         return f"{fmt(salary_min)} - {fmt(salary_max)}"
     if salary_min:
         return f"{fmt(salary_min)}+"
