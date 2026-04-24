@@ -66,7 +66,7 @@ def _detect_shift(title: str, description: str | None = None) -> str | None:
 
 
 _DESC_SALARY_RE = re.compile(
-    r"\$\s*([\d,]+(?:\.\d{2})?)\s*(?:[-\u2013/]|to)\s*\$\s*([\d,]+(?:\.\d{2})?)"
+    r"\$\s*([\d,]+(?:\.\d{2})?)\s*([kK])?\s*(?:[-\u2013/]|to)\s*\$\s*([\d,]+(?:\.\d{2})?)\s*([kK])?"
 )
 _HOURLY_RE = re.compile(r"/\s*(?:hr|hour)", re.IGNORECASE)
 
@@ -134,7 +134,7 @@ def _normalize_location(location: str | None) -> str | None:
 
 _SALARY_CONTEXT_RE = re.compile(
     r"(?:salary|pay\s*(?:range)?|compensation|hourly\s*rate|wage|starting\s*at|range)[:\s]*"
-    r"\$\s*([\d,]+(?:\.\d{2})?)\s*(?:[-\u2013/]|to)\s*\$\s*([\d,]+(?:\.\d{2})?)",
+    r"\$\s*([\d,]+(?:\.\d{2})?)\s*([kK])?\s*(?:[-\u2013/]|to)\s*\$\s*([\d,]+(?:\.\d{2})?)\s*([kK])?",
     re.IGNORECASE,
 )
 
@@ -154,7 +154,12 @@ def _extract_salary_from_description(desc_plain: str | None, existing_min, exist
         return None, None
 
     low = float(m.group(1).replace(",", ""))
-    high = float(m.group(2).replace(",", ""))
+    high = float(m.group(3).replace(",", ""))
+    # Apply K multiplier if present (e.g., "$117K to $134K")
+    if m.group(2):
+        low *= 1000
+    if m.group(4):
+        high *= 1000
 
     # Check if hourly (look at context around the match)
     context = desc_plain[max(0, m.start() - 30):m.end() + 40]

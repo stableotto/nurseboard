@@ -109,9 +109,13 @@ def parse_salary(text: str) -> tuple[int | None, int | None]:
     if match and not _is_non_salary(text, match.start(), match.end()):
         try:
             low = float(match.group(1).replace(",", ""))
-            high = float(match.group(2).replace(",", ""))
+            high = float(match.group(3).replace(",", ""))
         except (ValueError, TypeError):
             low = high = 0
+        if match.group(2):  # K suffix on low
+            low *= 1000
+        if match.group(4):  # K suffix on high
+            high *= 1000
         hourly = _is_hourly(text, match.start(), match.end())
 
         low_cents = _classify_and_convert(low, hourly)
@@ -120,7 +124,7 @@ def parse_salary(text: str) -> tuple[int | None, int | None]:
         if low_cents and high_cents:
             return (min(low_cents, high_cents), max(low_cents, high_cents))
 
-    # Try single value: "$75,000" or "$45/hr"
+    # Try single value: "$75,000" or "$45/hr" or "$117K"
     for match in SALARY_SINGLE_PATTERN.finditer(text):
         if _is_non_salary(text, match.start(), match.end()):
             continue
@@ -131,13 +135,17 @@ def parse_salary(text: str) -> tuple[int | None, int | None]:
             val1 = float(val1_str.replace(",", ""))
         except ValueError:
             continue
-        val2_str = match.group(2)
+        if match.group(2):  # K suffix
+            val1 *= 1000
+        val2_str = match.group(3)
 
         hourly = _is_hourly(text, match.start(), match.end())
 
         if val2_str:
             # Has an upper bound too
             val2 = float(val2_str.replace(",", ""))
+            if match.group(4):  # K suffix on upper bound
+                val2 *= 1000
             low_cents = _classify_and_convert(val1, hourly)
             high_cents = _classify_and_convert(val2, hourly)
             if low_cents and high_cents:
@@ -155,6 +163,12 @@ MIN_BONUS = 500
 MAX_BONUS = 100_000
 
 
+_NON_BONUS_PATTERN = re.compile(
+    r"repay|forgiv|loan|tuition|reimburse|relocation|stipend",
+    re.IGNORECASE,
+)
+
+
 def parse_bonus(text: str) -> int | None:
     """Extract sign-on bonus amount from text. Returns amount in cents, or None."""
     if not text:
@@ -164,6 +178,23 @@ def parse_bonus(text: str) -> int | None:
         raw = match.group(1) or match.group(2)
         if not raw:
             continue
+
+        # For pattern 1 ($AMOUNT ... bonus), check that the dollar amount
+        # isn't actually from a loan/repayment phrase that runs into bonus text.
+        # Only check the clause containing the dollar amount (back to last sentence break).
+        if match.group(1):
+            dollar_pos = match.start()
+            # Find the start of the current clause/sentence
+            clause_start = max(
+                text.rfind(".", 0, dollar_pos),
+                text.rfind(";", 0, dollar_pos),
+                text.rfind("\n", 0, dollar_pos),
+                0,
+            )
+            context_before = text[clause_start:dollar_pos]
+            if _NON_BONUS_PATTERN.search(context_before):
+                continue
+
         try:
             value = float(raw.replace(",", ""))
         except ValueError:

@@ -137,13 +137,13 @@ DEPARTMENT_KEYWORDS = re.compile(
 # Salary parsing from description text
 # Matches: "$50,000 - $75,000", "$28.00 to $42.00/hr", "$32/hr - $48/hr"
 SALARY_RANGE_PATTERN = re.compile(
-    r"\$([\d,]+(?:\.\d{2})?)\s*(?:/\w+\s*)?(?:[-\u2013]+|to)\s*\$([\d,]+(?:\.\d{2})?)"
+    r"\$([\d,]+(?:\.\d{2})?)\s*([kK])?\s*(?:/\w+\s*)?(?:[-\u2013]+|to)\s*\$([\d,]+(?:\.\d{2})?)\s*([kK])?"
 )
-# Matches single salary: "$75,000", "$45.00/hr", "Starting at $50,000"
+# Matches single salary: "$75,000", "$45.00/hr", "Starting at $50,000", "$117K"
 SALARY_SINGLE_PATTERN = re.compile(
     r"(?:(?:starting|up to|from|base|minimum|at least|approximately|~)\s+)?"
-    r"\$([\d,]+(?:\.\d{2})?)"
-    r"(?:\s*[-\u2013]\s*\$([\d,]+(?:\.\d{2})?))?",  # optional upper bound
+    r"\$([\d,]+(?:\.\d{2})?)\s*([kK])?"
+    r"(?:\s*[-\u2013]\s*\$([\d,]+(?:\.\d{2})?)\s*([kK])?)?",  # optional upper bound
     re.IGNORECASE,
 )
 # Detects hourly pay — broader than before
@@ -161,8 +161,8 @@ ANNUAL_PATTERN = re.compile(
 # Matches: "$5,000 sign-on bonus", "signing bonus of $10,000", "$15k sign on bonus"
 BONUS_PATTERN = re.compile(
     r"(?:"
-    # Pattern 1: dollar amount followed by bonus phrase
-    r"\$([\d,]+(?:\.\d{2})?)\s*(?:k\b)?\s*(?:sign[\-\s]?on|signing|recruitment|retention|welcome|hiring)\s*bonus"
+    # Pattern 1: dollar amount followed by bonus phrase (requires whitespace separator)
+    r"\$([\d,]+(?:\.\d{2})?)\s*(?:k\b)?\s+(?:sign[\-\s]?on|signing|recruitment|retention|welcome|hiring)\s*bonus"
     r"|"
     # Pattern 2: bonus phrase followed by dollar amount
     r"(?:sign[\-\s]?on|signing|recruitment|retention|welcome|hiring)\s*bonus\s*(?:of\s*|up\s+to\s*|:\s*)?\$([\d,]+(?:\.\d{2})?)\s*(?:k\b)?"
