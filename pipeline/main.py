@@ -6,7 +6,7 @@ import sys
 from pipeline.config import DB_PATH
 from pipeline.db import (
     get_connection, get_exportable_jobs, get_stats,
-    mark_removed, upsert_job, delete_unenriched,
+    mark_removed, upsert_job, delete_unenriched, save_enrichment,
 )
 from pipeline.download import download_upstream_jobs
 from pipeline.enrich import enrich_all
@@ -15,6 +15,7 @@ from pipeline.freshness import check_freshness
 from pipeline.filter import filter_healthcare_jobs
 from pipeline.scrape_workday import scrape_extra_workday
 from pipeline.scrape_oracle_hcm import scrape_oracle_hcm
+from pipeline.scrape_phenom import scrape_phenom
 # from pipeline.scrape_neogov import scrape_neogov  # Disabled: HTML scraping, rate-limited
 
 logging.basicConfig(
@@ -48,7 +49,13 @@ def main():
         healthcare_jobs.extend(oracle_jobs)
         logger.info("Added %d Oracle HCM jobs", len(oracle_jobs))
 
-    if extra_jobs or oracle_jobs:
+    # 2d. Scrape Phenom career sites (jobs come pre-enriched with descriptions)
+    phenom_jobs = scrape_phenom()
+    if phenom_jobs:
+        healthcare_jobs.extend(phenom_jobs)
+        logger.info("Added %d Phenom jobs", len(phenom_jobs))
+
+    if extra_jobs or oracle_jobs or phenom_jobs:
         logger.info("Total healthcare jobs (upstream + extra): %d", len(healthcare_jobs))
 
     if not healthcare_jobs:
@@ -71,15 +78,34 @@ def main():
     new_by_ats = {}
     updated_count = 0
     current_urls = set()
+    pre_enriched = []
     for job in healthcare_jobs:
         current_urls.add(job["url"])
         if upsert_job(conn, job):
             new_count += 1
             ats = (job.get("ats") or "").lower()
             new_by_ats[ats] = new_by_ats.get(ats, 0) + 1
+            # Track pre-enriched jobs (e.g. Phenom) that already have descriptions
+            if job.get("description_html"):
+                pre_enriched.append(job)
         else:
             updated_count += 1
     conn.commit()
+
+    # Save enrichment data for pre-enriched jobs (avoids redundant enricher calls)
+    if pre_enriched:
+        for job in pre_enriched:
+            save_enrichment(conn, job["url"], {
+                "description_html": job["description_html"],
+                "description_plain": job.get("description_plain", ""),
+                "posted_date": job.get("posted_date"),
+                "salary_min": job.get("salary_min"),
+                "salary_max": job.get("salary_max"),
+                "bonus": job.get("bonus"),
+                "company_name": job.get("company_name"),
+            })
+        conn.commit()
+        logger.info("  Pre-enriched: %d jobs (Phenom)", len(pre_enriched))
     logger.info("=== Upsert Breakdown ===")
     logger.info("  Upstream healthcare jobs: %d", len(healthcare_jobs))
     logger.info("  Already in DB (updated): %d", updated_count)
