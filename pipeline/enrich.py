@@ -102,8 +102,8 @@ def enrich_ats(db_path: str, ats: str, enrich_fn, limit: int = 10000) -> dict:
                     conn.commit()
                     failed += 1  # Gone, not an error
             except requests.exceptions.HTTPError as e:
-                if e.response is not None and e.response.status_code == 404:
-                    # Job removed from ATS — not a real error
+                if e.response is not None and e.response.status_code in (404, 422):
+                    # Job removed from ATS (404) or invalid/stale (422) — not a real error
                     mark_job_gone(conn, job["url"])
                     conn.commit()
                     failed += 1
