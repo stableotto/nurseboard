@@ -293,10 +293,9 @@ def _build_list_entry(job: dict) -> dict:
             job.get("description_plain"), salary_min, salary_max
         )
 
-    return {
+    entry = {
         "id": jid,
         "slug": slug,
-        "url": job["url"],
         "title": job["title"],
         "company_slug": job["company_slug"],
         "company_name": company_display,
@@ -305,15 +304,14 @@ def _build_list_entry(job: dict) -> dict:
         "metro": metro,
         "shift": shift,
         "bonus": job.get("bonus"),
-        "ats_platform": job["ats_platform"],
         "departments": json.loads(job["departments"]) if job.get("departments") else [],
-        "is_recruiter": bool(job.get("is_recruiter")),
         "posted_date": job.get("posted_date"),
         "salary_min": salary_min,
         "salary_max": salary_max,
-        "salary_currency": job.get("salary_currency", "USD"),
         "first_seen_at": job.get("first_seen_at"),
     }
+    # Strip None/empty values to reduce jobs.json size
+    return {k: v for k, v in entry.items() if v is not None and v != [] and v is not False}
 
 
 # ---------------------------------------------------------------------------
@@ -935,7 +933,8 @@ def export_for_frontend(jobs: list[dict], stats: dict):
         entry = _build_list_entry(job)
         list_jobs.append(entry)
         if job.get("description_html") or job.get("description_plain"):
-            detail_jobs.append((entry, job.get("description_html") or job.get("description_plain")))
+            # Pass url separately for detail pages (stripped from list entries to save space)
+            detail_jobs.append((entry, job.get("description_html") or job.get("description_plain"), job["url"]))
 
     # Write jobs.json for JS interactivity
     with open(JOBS_JSON, "w") as f:
@@ -969,7 +968,7 @@ def export_for_frontend(jobs: list[dict], stats: dict):
     _generate_sitemap(list_jobs)
 
 
-def _generate_job_detail_pages(detail_jobs: list[tuple[dict, str]]):
+def _generate_job_detail_pages(detail_jobs: list[tuple[dict, str, str]]):
     """Generate chunked JSON detail files keyed by 2-char hex prefix.
 
     Instead of one file per job (which exceeds Cloudflare Pages' 20K file
@@ -983,14 +982,14 @@ def _generate_job_detail_pages(detail_jobs: list[tuple[dict, str]]):
     count = 0
     chunks: dict[str, dict] = {}
 
-    for entry, desc_html in detail_jobs:
+    for entry, desc_html, job_url in detail_jobs:
         jid = entry["id"]
         prefix = jid[:2]
 
         salary = _format_salary_html(entry.get("salary_min"), entry.get("salary_max"))
         jsonld = _build_job_jsonld(entry, desc_html, salary)
 
-        detail = {**entry, "description_html": desc_html, "jsonld": jsonld}
+        detail = {**entry, "url": job_url, "description_html": desc_html, "jsonld": jsonld}
         if prefix not in chunks:
             chunks[prefix] = {}
         chunks[prefix][jid] = detail
