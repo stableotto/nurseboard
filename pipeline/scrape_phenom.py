@@ -30,8 +30,9 @@ logger = logging.getLogger(__name__)
 
 COMPANIES_FILE = os.path.join(os.path.dirname(__file__), "phenom_companies.json")
 SEARCH_SIZE = 500
-MAX_DETAIL_WORKERS = 5
-DETAIL_DELAY = 0.2  # seconds between detail calls per site
+MAX_SITE_WORKERS = 5       # concurrent sites
+MAX_DETAIL_WORKERS = 15    # concurrent detail calls per site
+MAX_SITE_MINUTES = 10      # time cap per site for detail fetching
 
 USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -163,17 +164,9 @@ def _scrape_site(site: dict) -> list[dict]:
 
     logger.info("[phenom] %s: %d healthcare jobs of %d total, fetching details", domain, len(candidates), len(raw_jobs))
 
-    # Pass 2: Fetch details for healthcare jobs
-    results = []
-    for i, rj in enumerate(candidates):
-        job_seq_no = rj.get("jobSeqNo", "")
-        if not job_seq_no:
-            continue
-
-        detail = _fetch_detail(domain, job_seq_no)
-        if detail is None:
-            detail = {}
-
+    # Pass 2: Fetch details concurrently
+    def _build_job(rj: dict, detail: dict) -> dict:
+        """Build a job dict from search result + detail data."""
         title = rj.get("title", "")
         city = rj.get("city", "")
         state = rj.get("state", "")
@@ -182,27 +175,22 @@ def _scrape_site(site: dict) -> list[dict]:
         posted = rj.get("postedDate", "")
         category = rj.get("category", "")
         job_type = rj.get("type", "")
-        req_id = rj.get("reqId", "")
 
-        # Build job URL
         title_slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")[:80]
-        job_url = f"https://{domain}/us/en/job/{job_seq_no}/{title_slug}"
+        job_url = f"https://{domain}/us/en/job/{rj.get('jobSeqNo', '')}/{title_slug}"
 
-        # Description from detail
         desc_html = detail.get("description", "")
         desc_plain = ""
         if desc_html:
             desc_plain = re.sub(r"<[^>]+>", " ", desc_html)
             desc_plain = re.sub(r"\s+", " ", desc_plain).strip()
 
-        # Salary: parse from description
         salary_min = salary_max = None
         bonus = None
         if desc_plain:
             salary_min, salary_max = parse_salary(desc_plain)
             bonus = parse_bonus(desc_plain)
 
-        # Departments
         departments = []
         if category:
             departments.append(category)
@@ -224,8 +212,6 @@ def _scrape_site(site: dict) -> list[dict]:
 
         if posted:
             job["posted_date"] = posted[:10]
-
-        # These fields are normally set during enrichment, but we have them now
         if desc_html:
             job["description_html"] = desc_html
             job["description_plain"] = desc_plain
@@ -235,12 +221,37 @@ def _scrape_site(site: dict) -> list[dict]:
         if bonus:
             job["bonus"] = bonus
 
-        results.append(job)
+        return job
 
-        if (i + 1) % 100 == 0:
-            logger.info("[phenom] %s: fetched %d/%d details", domain, i + 1, len(candidates))
+    results = []
+    start_time = time.monotonic()
+    fetched = 0
 
-        time.sleep(DETAIL_DELAY)
+    with ThreadPoolExecutor(max_workers=MAX_DETAIL_WORKERS) as executor:
+        future_to_rj = {
+            executor.submit(_fetch_detail, domain, rj.get("jobSeqNo", "")): rj
+            for rj in candidates if rj.get("jobSeqNo")
+        }
+        for future in as_completed(future_to_rj):
+            elapsed_min = (time.monotonic() - start_time) / 60
+            if elapsed_min >= MAX_SITE_MINUTES:
+                logger.warning("[phenom] %s: time cap reached (%.0fm), got %d/%d", domain, elapsed_min, fetched, len(candidates))
+                # Cancel remaining futures
+                for f in future_to_rj:
+                    f.cancel()
+                break
+
+            rj = future_to_rj[future]
+            try:
+                detail = future.result() or {}
+            except Exception:
+                detail = {}
+
+            results.append(_build_job(rj, detail))
+            fetched += 1
+
+            if fetched % 500 == 0:
+                logger.info("[phenom] %s: fetched %d/%d details (%.0fm)", domain, fetched, len(candidates), elapsed_min)
 
     return results
 
@@ -257,7 +268,7 @@ def scrape_phenom() -> list[dict]:
     success = 0
     failed = 0
 
-    with ThreadPoolExecutor(max_workers=MAX_DETAIL_WORKERS) as executor:
+    with ThreadPoolExecutor(max_workers=MAX_SITE_WORKERS) as executor:
         futures = {
             executor.submit(_scrape_site, site): site["domain"]
             for site in sites
