@@ -51,16 +51,27 @@ class RateLimiter:
 MAX_ENRICH_MINUTES = 50  # Hard time limit per ATS enricher
 MAX_TOTAL_FAILURES = 50  # Bail fast if ATS is having a bad day, retry next run
 
+# Per-ATS overrides for time limit (minutes) and fetch limit
+ATS_TIME_LIMITS = {
+    "workday": 90,  # Large backlog, safe at 3 req/s
+}
+ATS_FETCH_LIMITS = {
+    "workday": 20000,  # Need higher limit to fill the longer time window
+}
+
 
 def enrich_ats(db_path: str, ats: str, enrich_fn, limit: int = 10000) -> dict:
     """Enrich jobs for a single ATS platform. Creates its own DB connection."""
+    time_limit = ATS_TIME_LIMITS.get(ats, MAX_ENRICH_MINUTES)
+    fetch_limit = ATS_FETCH_LIMITS.get(ats, limit)
+
     conn = get_connection(db_path)
     try:
-        jobs = get_unenriched(conn, ats, limit=limit)
+        jobs = get_unenriched(conn, ats, limit=fetch_limit)
         if not jobs:
             return {"ats": ats, "total": 0, "success": 0, "failed": 0, "skipped": False}
 
-        logger.info("[%s] Enriching %d jobs", ats, len(jobs))
+        logger.info("[%s] Enriching %d jobs (time limit: %dm)", ats, len(jobs), time_limit)
         limiter = RateLimiter(RATE_LIMITS.get(ats, 3))
         consecutive_failures = 0
         success = 0
@@ -70,7 +81,7 @@ def enrich_ats(db_path: str, ats: str, enrich_fn, limit: int = 10000) -> dict:
 
         for job in jobs:
             elapsed_min = (time.monotonic() - start_time) / 60
-            if elapsed_min >= MAX_ENRICH_MINUTES:
+            if elapsed_min >= time_limit:
                 logger.warning("[%s] Time limit reached (%.0fm), stopping with %d/%d enriched", ats, elapsed_min, success, len(jobs))
                 return {"ats": ats, "total": len(jobs), "success": success, "failed": failed, "skipped": True}
 
