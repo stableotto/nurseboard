@@ -84,6 +84,41 @@ def _extract_state(location: str | None) -> str | None:
     return None
 
 
+# Non-US location keywords (provinces, countries, etc.)
+_NON_US_KEYWORDS = re.compile(
+    r"\b(?:Ontario|Alberta|British Columbia|Manitoba|Saskatchewan|Quebec|Nova Scotia|"
+    r"New Brunswick|Newfoundland|Canada|United Kingdom|England|Scotland|Wales|"
+    r"Ireland|Australia|India|Philippines|Mexico|Germany|France|Japan|China|"
+    r"Singapore|Hong Kong|Dubai|UAE|Netherlands|Sweden|Switzerland|Brazil)\b",
+    re.IGNORECASE,
+)
+# Canadian province abbreviations (two-letter codes NOT in US states)
+_CA_PROVINCE_RE = re.compile(r",\s*(?:ON|AB|BC|QC|MB|SK|NS|NB|NL|PE|NT|YT|NU)\b")
+
+
+def _is_us_or_remote(location: str | None) -> bool:
+    """Return True if the location is in the US or is remote/virtual."""
+    if not location:
+        return False
+    loc_lower = location.lower()
+    # Remote jobs are fine
+    if any(kw in loc_lower for kw in ("remote", "virtual", "telehealth", "work from home")):
+        return True
+    # Reject if non-US keywords found
+    if _NON_US_KEYWORDS.search(location):
+        return False
+    if _CA_PROVINCE_RE.search(location):
+        return False
+    # Accept if we can extract a US state
+    if _extract_state(location):
+        return True
+    # Accept if it mentions "United States" or "USA"
+    if "united states" in loc_lower or ", usa" in loc_lower:
+        return True
+    # Ambiguous location with no state — allow it (could be US city without state)
+    return True
+
+
 def _normalize_location(location: str | None) -> str | None:
     """Normalize location to 'City, ST' format. Remove coordinates, zip codes, addresses."""
     if not location:
@@ -928,13 +963,20 @@ def export_for_frontend(jobs: list[dict], stats: dict):
 
     list_jobs = []
     detail_jobs = []
+    skipped_non_us = 0
 
     for job in jobs:
+        if not _is_us_or_remote(job.get("location")):
+            skipped_non_us += 1
+            continue
         entry = _build_list_entry(job)
         list_jobs.append(entry)
         if job.get("description_html") or job.get("description_plain"):
             # Pass url separately for detail pages (stripped from list entries to save space)
             detail_jobs.append((entry, job.get("description_html") or job.get("description_plain"), job["url"]))
+
+    if skipped_non_us:
+        logger.info("Skipped %d non-US jobs from export", skipped_non_us)
 
     # Write jobs.json for JS interactivity
     with open(JOBS_JSON, "w") as f:
