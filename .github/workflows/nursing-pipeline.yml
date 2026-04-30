@@ -44,6 +44,9 @@ jobs:
 
       - name: Run full pipeline
         if: ${{ github.event_name == 'schedule' || inputs.mode != 'quick' }}
+        env:
+          USAJOBS_API_KEY: ${{ secrets.USAJOBS_API_KEY }}
+          USAJOBS_EMAIL: ${{ secrets.USAJOBS_EMAIL }}
         run: python -m pipeline.main
 
       - name: Quick export (skip scraping/enrichment)

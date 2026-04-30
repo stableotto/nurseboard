@@ -16,6 +16,7 @@ from pipeline.filter import filter_healthcare_jobs
 from pipeline.scrape_workday import scrape_extra_workday
 from pipeline.scrape_oracle_hcm import scrape_oracle_hcm
 from pipeline.scrape_phenom import scrape_phenom
+from pipeline.scrape_usajobs import scrape_usajobs
 # from pipeline.scrape_neogov import scrape_neogov  # Disabled: HTML scraping, rate-limited
 
 logging.basicConfig(
@@ -55,7 +56,13 @@ def main():
         healthcare_jobs.extend(phenom_jobs)
         logger.info("Added %d Phenom jobs", len(phenom_jobs))
 
-    if extra_jobs or oracle_jobs or phenom_jobs:
+    # 2e. Scrape USAJobs federal healthcare positions (pre-enriched)
+    usajobs_jobs = scrape_usajobs()
+    if usajobs_jobs:
+        healthcare_jobs.extend(usajobs_jobs)
+        logger.info("Added %d USAJobs federal jobs", len(usajobs_jobs))
+
+    if extra_jobs or oracle_jobs or phenom_jobs or usajobs_jobs:
         logger.info("Total healthcare jobs (upstream + extra): %d", len(healthcare_jobs))
 
     if not healthcare_jobs:
@@ -105,7 +112,7 @@ def main():
                 "company_name": job.get("company_name"),
             })
         conn.commit()
-        logger.info("  Pre-enriched: %d jobs (Phenom)", len(pre_enriched))
+        logger.info("  Pre-enriched: %d jobs (Phenom/USAJobs)", len(pre_enriched))
     logger.info("=== Upsert Breakdown ===")
     logger.info("  Upstream healthcare jobs: %d", len(healthcare_jobs))
     logger.info("  Already in DB (updated): %d", updated_count)
