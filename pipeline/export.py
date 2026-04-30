@@ -119,6 +119,27 @@ def _is_us_or_remote(location: str | None) -> bool:
     return True
 
 
+# "N Locations" pattern
+_N_LOCATIONS_RE = re.compile(r"^\d+\s+Locations?$", re.IGNORECASE)
+
+# "City - Region - StateName" pattern (e.g. LCMC Health Louisiana locations)
+_CITY_REGION_STATE_RE = re.compile(
+    r"^([A-Za-z][A-Za-z .'-]+?)\s*-\s*.+?-\s*([A-Za-z ]+)$"
+)
+
+# Street address pattern (number + street name)
+_STREET_RE = re.compile(r"\d+\s+[A-Za-z]+\s+(?:Ave|Avenue|Blvd|Boulevard|St|Street|Rd|Road|Dr|Drive|Ln|Lane|Way|Ct|Court|Pkwy|Parkway|Hwy|Highway)\b\.?", re.IGNORECASE)
+
+# US county name → state abbreviation (for ATS systems that use county instead of state)
+_COUNTY_TO_STATE = {
+    # New York (Northwell Health etc.)
+    "Nassau": "NY", "Suffolk": "NY", "Westchester": "NY", "Queens": "NY",
+    "Richmond": "NY", "Dutchess": "NY", "Kings": "NY", "Bronx": "NY",
+    # Connecticut
+    "Fairfield": "CT", "Litchfield": "CT", "Hartford": "CT", "New Haven": "CT",
+}
+
+
 def _normalize_location(location: str | None) -> str | None:
     """Normalize location to 'City, ST' format. Remove coordinates, zip codes, addresses."""
     if not location:
@@ -126,12 +147,57 @@ def _normalize_location(location: str | None) -> str | None:
 
     loc = location.strip()
 
+    # "N Locations" → useless
+    if _N_LOCATIONS_RE.match(loc):
+        return None
+
+    # "Remote - Tier 1" etc. → just "Remote"
+    if loc.lower().startswith("remote"):
+        return "Remote"
+
+    # Multi-location semicolons → take the first one
+    if ";" in loc:
+        loc = loc.split(";")[0].strip()
+
     # Remove coordinates
     loc = _COORD_RE.sub("", loc)
 
     # Remove pipe-delimited suffixes (e.g., "Linnaeus Wear Referrals|170102")
     if "|" in loc:
         loc = loc.split("|")[0].strip()
+
+    # Strip street addresses (e.g., "302 Silver Ave. San Francisco, CA 94112")
+    loc = _STREET_RE.sub("", loc).strip().lstrip(",.").strip()
+
+    # Strip address suffixes after dash (e.g., "Moorestown - 401 Young Ave")
+    m = re.match(r"^([A-Za-z][A-Za-z .'-]+?)\s+-\s+\d+\s+", loc)
+    if m:
+        loc = m.group(1).strip()
+
+    # Clean up any trailing dashes left over
+    loc = loc.strip().rstrip("-").strip()
+
+    # "City - Region - StateName" (e.g., "Shreveport - North Louisiana Region - Louisiana")
+    m = _CITY_REGION_STATE_RE.match(loc)
+    if m:
+        city = m.group(1).strip()
+        state_name = m.group(2).strip()
+        abbr = _FULL_STATE_NAMES.get(state_name)
+        if abbr:
+            return f"{city}, {abbr}"
+
+    # "City, County, United States" → map county to state
+    m = re.match(r"([A-Za-z][A-Za-z .'-]+),\s*([A-Za-z ]+),\s*United States", loc)
+    if m:
+        city = m.group(1).strip()
+        middle = m.group(2).strip()
+        # Check if middle is a county we know
+        if middle in _COUNTY_TO_STATE:
+            return f"{city}, {_COUNTY_TO_STATE[middle]}"
+        # Check if middle is a full state name
+        abbr = _FULL_STATE_NAMES.get(middle)
+        if abbr:
+            return f"{city}, {abbr}"
 
     # Try to extract "City, ST" pattern
     # Match "City, STATE_ABBR" possibly with zip/extra
