@@ -38,6 +38,14 @@ def main():
     if not healthcare_jobs:
         logger.warning("No healthcare jobs found from upstream!")
 
+    # Drop ATS platforms we don't support (no enricher = dead weight in DB)
+    SKIP_ATS = {"icims"}
+    before = len(healthcare_jobs)
+    healthcare_jobs = [j for j in healthcare_jobs if (j.get("ats") or "").lower() not in SKIP_ATS]
+    skipped = before - len(healthcare_jobs)
+    if skipped:
+        logger.info("Skipped %d jobs from unsupported ATS platforms (%s)", skipped, ", ".join(SKIP_ATS))
+
     # 2b. Scrape extra Workday companies
     extra_jobs = scrape_extra_workday()
     if extra_jobs:
