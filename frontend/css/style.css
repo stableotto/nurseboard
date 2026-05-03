@@ -801,20 +801,32 @@ a { color: inherit; text-decoration: none; }
   .hero-content { flex-direction: column; gap: 16px; }
   .hero { padding: 32px 0 24px; }
 
-  /* Job cards: allow title to wrap, show location + time below meta */
+  /* Job cards: allow title to wrap, show location + time inline below meta */
   .job-title { white-space: normal; }
-  .job-row { flex-wrap: wrap; }
+  .job-row {
+    flex-wrap: wrap;
+    padding: 14px 8px;
+    gap: 12px;
+  }
+  .job-info { flex: 1; min-width: 0; }
   .job-right {
     display: flex !important;
     width: 100%;
-    padding-left: 56px; /* align with text (avatar 40px + gap 16px) */
+    padding-left: 52px; /* align with text (avatar 40px + gap 12px) */
     gap: 8px;
-    font-size: 12px;
-    margin-top: -4px;
+    align-items: center;
+    margin-top: -6px;
+    text-align: left;
   }
-  .job-location { font-size: 12px; }
+  .job-location {
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 60%;
+  }
   .job-location::after { content: "\00b7"; margin-left: 8px; color: var(--text-muted); }
-  .job-time { font-size: 12px; margin-top: 0; }
+  .job-time { font-size: 12px; margin-top: 0; white-space: nowrap; }
 
   /* Hamburger mobile menu */
   .header-left {

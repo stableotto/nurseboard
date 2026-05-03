@@ -84,19 +84,26 @@ def _extract_state(location: str | None) -> str | None:
     return None
 
 
-# Non-US location keywords (provinces, countries, etc.)
+# Non-US location keywords (provinces, countries, regions, etc.)
 _NON_US_KEYWORDS = re.compile(
     r"\b(?:Ontario|Alberta|British Columbia|Manitoba|Saskatchewan|Quebec|Nova Scotia|"
     r"New Brunswick|Newfoundland|Canada|United Kingdom|England|Scotland|Wales|"
     r"Ireland|Australia|India|Philippines|Mexico|Germany|France|Japan|China|"
-    r"Singapore|Hong Kong|Dubai|UAE|Netherlands|Sweden|Switzerland|Brazil)\b",
+    r"Singapore|Hong Kong|Dubai|UAE|Netherlands|Sweden|Switzerland|Brazil|"
+    r"North Rhine-Westphalia|Bavaria|Saxony|Baden-W[uü]rttemberg|"
+    r"Yorkshire|Lancashire|Surrey|Essex|Kent|Coventry|Bromley|"
+    r"Hyderabad|Bangalore|Mumbai|Chennai|Pune|"
+    r"South Korea|Taiwan|Thailand|Vietnam|Indonesia|Malaysia|"
+    r"Spain|Italy|Portugal|Poland|Czech|Austria|Denmark|Norway|Finland|Belgium|"
+    r"Saudi Arabia|Qatar|Kuwait|Israel|Turkey|Egypt|South Africa|Nigeria|"
+    r"Argentina|Chile|Colombia|Peru|Costa Rica|Puerto Rico)\b",
     re.IGNORECASE,
 )
 # Canadian province abbreviations (two-letter codes NOT in US states)
 _CA_PROVINCE_RE = re.compile(r",\s*(?:ON|AB|BC|QC|MB|SK|NS|NB|NL|PE|NT|YT|NU)\b")
 
 
-def _is_us_or_remote(location: str | None) -> bool:
+def _is_us_or_remote(location: str | None, company_name: str | None = None) -> bool:
     """Return True if the location is in the US or is remote/virtual."""
     if not location:
         return False
@@ -104,11 +111,16 @@ def _is_us_or_remote(location: str | None) -> bool:
     # Remote jobs are fine
     if any(kw in loc_lower for kw in ("remote", "virtual", "telehealth", "work from home")):
         return True
-    # Reject if non-US keywords found
+    # Reject if non-US keywords found in location
     if _NON_US_KEYWORDS.search(location):
         return False
     if _CA_PROVINCE_RE.search(location):
         return False
+    # Check company name for "(Canada)" etc.
+    if company_name and _NON_US_KEYWORDS.search(company_name):
+        # Company is non-US and location has no US state — reject
+        if not _extract_state(location):
+            return False
     # Accept if we can extract a US state
     if _extract_state(location):
         return True
@@ -158,6 +170,15 @@ def _normalize_location(location: str | None) -> str | None:
     # Multi-location semicolons → take the first one
     if ";" in loc:
         loc = loc.split(";")[0].strip()
+
+    # "ST-City" or "ST - City" format (e.g., "NC-DURHAM", "CA - Porterville")
+    m = re.match(r"^([A-Z]{2})\s*-\s*([A-Za-z][A-Za-z .'-]+)", loc)
+    if m and m.group(1) in _US_STATES:
+        city = m.group(2).strip().rstrip(",").strip()
+        # Title-case if ALL CAPS
+        if city.isupper():
+            city = city.title()
+        return f"{city}, {m.group(1)}"
 
     # Remove coordinates
     loc = _COORD_RE.sub("", loc)
@@ -1032,7 +1053,7 @@ def export_for_frontend(jobs: list[dict], stats: dict):
     skipped_non_us = 0
 
     for job in jobs:
-        if not _is_us_or_remote(job.get("location")):
+        if not _is_us_or_remote(job.get("location"), job.get("company_name")):
             skipped_non_us += 1
             continue
         entry = _build_list_entry(job)
