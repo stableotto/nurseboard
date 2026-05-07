@@ -886,7 +886,11 @@ def _generate_geo_data(list_jobs: list[dict]):
     zips_path = os.path.join(EXPORT_DIR, "zips.json")
     cities_path = os.path.join(EXPORT_DIR, "cities.json")
 
-    if not os.path.exists(zips_path):
+    # Download zip CSV and build both zips.json and full city averages
+    all_cities_path = os.path.join(EXPORT_DIR, "all_cities.json")
+    need_download = not os.path.exists(zips_path) or not os.path.exists(all_cities_path)
+
+    if need_download:
         try:
             import requests
             logger.info("Downloading zip code data...")
@@ -916,26 +920,28 @@ def _generate_geo_data(list_jobs: list[dict]):
             with open(zips_path, "w") as f:
                 json.dump(zip_data, f, separators=(",", ":"))
 
-            # Build city averages, filtered to our job cities
+            # Save ALL city averages (not filtered) so we can rebuild cities.json each run
             all_city_avg = {}
             for key, (lats, lngs) in city_coords.items():
                 all_city_avg[key] = [round(sum(lats) / len(lats), 4), round(sum(lngs) / len(lngs), 4)]
+            with open(all_cities_path, "w") as f:
+                json.dump(all_city_avg, f, separators=(",", ":"))
 
-            filtered_cities = {k: v for k, v in all_city_avg.items() if k in job_cities}
-            with open(cities_path, "w") as f:
-                json.dump(filtered_cities, f, separators=(",", ":"))
-
-            logger.info("Generated geo data: %d zips, %d cities", len(zip_data), len(filtered_cities))
+            logger.info("Downloaded geo data: %d zips, %d total cities", len(zip_data), len(all_city_avg))
         except Exception as e:
             logger.warning("Failed to download zip data: %s", e)
-    else:
-        # Just update cities.json with current job cities
-        try:
-            # Re-read all city data from zips to rebuild
-            # Actually just keep existing cities.json if zips exist
-            logger.info("Zip data already cached")
-        except Exception:
-            pass
+            return
+
+    # Rebuild cities.json each run — filtered to cities that appear in our job data
+    try:
+        with open(all_cities_path) as f:
+            all_city_avg = json.load(f)
+        filtered_cities = {k: v for k, v in all_city_avg.items() if k in job_cities}
+        with open(cities_path, "w") as f:
+            json.dump(filtered_cities, f, separators=(",", ":"))
+        logger.info("Updated cities.json: %d cities (of %d in jobs)", len(filtered_cities), len(job_cities))
+    except Exception as e:
+        logger.warning("Failed to update cities.json: %s", e)
 
 
 def _download_one_logo(tenant: str, wd_num: str, site_id: str, company_slug: str) -> bool:
