@@ -91,7 +91,7 @@ _NON_US_KEYWORDS = re.compile(
     r"Ireland|Australia|India|Philippines|Mexico|Germany|France|Japan|China|"
     r"Singapore|Hong Kong|Dubai|UAE|Netherlands|Sweden|Switzerland|Brazil|"
     r"North Rhine-Westphalia|Bavaria|Saxony|Baden-W[uü]rttemberg|"
-    r"Yorkshire|Lancashire|Surrey|Essex|Kent|Coventry|Bromley|"
+    r"Yorkshire|South Yorkshire|West Midlands|Lancashire|Surrey|Essex|Kent|Newham|"
     r"Hyderabad|Bangalore|Mumbai|Chennai|Pune|"
     r"South Korea|Taiwan|Thailand|Vietnam|Indonesia|Malaysia|"
     r"Spain|Italy|Portugal|Poland|Czech|Austria|Denmark|Norway|Finland|Belgium|"
@@ -102,25 +102,49 @@ _NON_US_KEYWORDS = re.compile(
 # Canadian province abbreviations (two-letter codes NOT in US states)
 _CA_PROVINCE_RE = re.compile(r",\s*(?:ON|AB|BC|QC|MB|SK|NS|NB|NL|PE|NT|YT|NU)\b")
 
+# Known non-US companies (matched against company_name, case-insensitive)
+_NON_US_COMPANIES = re.compile(
+    r"\b(?:Pulse Healthcare|sonderaustralia|montu-uk|neko-health|Extendicare)\b",
+    re.IGNORECASE,
+)
+
+# UK/Irish cities that commonly appear without country suffix
+# (Only cities that do NOT share a name with a major US city)
+_NON_US_CITIES = {
+    "london", "manchester", "birmingham", "liverpool", "leeds", "sheffield",
+    "bristol", "edinburgh", "glasgow", "cardiff", "belfast", "nottingham",
+    "coventry", "brighton", "bath", "oxford", "cambridge", "exeter", "york",
+    "southampton", "derby", "stoke-on-trent", "wolverhampton", "sunderland",
+    "cheltenham", "chester", "watford", "ipswich", "norwich", "luton",
+    "bournemouth", "plymouth", "dundee", "aberdeen", "dublin",
+    "north london", "south london", "east london", "west london",
+}
+
 
 def _is_us_or_remote(location: str | None, company_name: str | None = None) -> bool:
     """Return True if the location is in the US or is remote/virtual."""
     if not location:
         return False
-    loc_lower = location.lower()
+    loc_lower = location.lower().strip()
     # Remote jobs are fine
     if any(kw in loc_lower for kw in ("remote", "virtual", "telehealth", "work from home")):
         return True
+    # Reject known non-US companies (unless location has a US state)
+    if company_name and _NON_US_COMPANIES.search(company_name):
+        if not _extract_state(location):
+            return False
     # Reject if non-US keywords found in location
     if _NON_US_KEYWORDS.search(location):
         return False
     if _CA_PROVINCE_RE.search(location):
         return False
-    # Check company name for "(Canada)" etc.
+    # Check company name for non-US country keywords
     if company_name and _NON_US_KEYWORDS.search(company_name):
-        # Company is non-US and location has no US state — reject
         if not _extract_state(location):
             return False
+    # Reject known non-US city names (exact match, no US state present)
+    if loc_lower in _NON_US_CITIES and not _extract_state(location):
+        return False
     # Accept if we can extract a US state
     if _extract_state(location):
         return True
