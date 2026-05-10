@@ -118,4 +118,4 @@ jobs:
           command: pages deploy frontend --project-name=scrubshifts --commit-dirty=true
 
       - name: Ping Google to re-crawl sitemap
-        run: curl -s "https://www.google.com/ping?sitemap=https://nurseboard.pages.dev/sitemap.xml" || true
+        run: curl -s "https://www.google.com/ping?sitemap=https://scrubshifts.com/sitemap.xml" || true

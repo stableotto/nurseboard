@@ -21,7 +21,7 @@ from pipeline.metros import get_metro, get_metro_name, METROS
 
 logger = logging.getLogger(__name__)
 
-SITE_URL = "https://nurseboard.pages.dev"
+SITE_URL = "https://scrubshifts.com"
 FRONTEND_DIR = "frontend"
 LOGOS_DIR = os.path.join(FRONTEND_DIR, "logos")
 
