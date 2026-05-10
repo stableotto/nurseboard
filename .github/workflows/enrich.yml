@@ -116,3 +116,6 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy frontend --project-name=scrubshifts --commit-dirty=true
+
+      - name: Ping Google to re-crawl sitemap
+        run: curl -s "https://www.google.com/ping?sitemap=https://nurseboard.pages.dev/sitemap.xml" || true

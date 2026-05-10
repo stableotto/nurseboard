@@ -1569,17 +1569,26 @@ def _generate_homepage(list_jobs: list[dict]):
 
 
 def _generate_sitemap(list_jobs: list[dict]):
-    """Generate sitemap.xml."""
+    """Generate sitemap.xml with category pages and job detail pages."""
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     urls = [f'  <url><loc>{SITE_URL}/</loc><lastmod>{now}</lastmod><changefreq>daily</changefreq><priority>1.0</priority></url>']
 
-    # Collect all generated pages by scanning the jobs/ directory
+    # Category pages (role, state, company, metro)
     jobs_dir = os.path.join(FRONTEND_DIR, "jobs")
     if os.path.isdir(jobs_dir):
         for root, dirs, files in os.walk(jobs_dir):
             if "index.html" in files:
                 rel = os.path.relpath(root, FRONTEND_DIR)
                 urls.append(f'  <url><loc>{SITE_URL}/{rel}/</loc><lastmod>{now}</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>')
+
+    # Job detail pages
+    for job in list_jobs:
+        slug = job.get("slug")
+        if not slug:
+            continue
+        # Use posted_date or first_seen_at for lastmod
+        lastmod = (job.get("posted_date") or job.get("first_seen_at") or now)[:10]
+        urls.append(f'  <url><loc>{SITE_URL}/listing/{slug}/</loc><lastmod>{lastmod}</lastmod><changefreq>weekly</changefreq><priority>0.5</priority></url>')
 
     sitemap = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' + "\n".join(urls) + "\n</urlset>"
     with open(os.path.join(FRONTEND_DIR, "sitemap.xml"), "w") as f:
@@ -1588,4 +1597,5 @@ def _generate_sitemap(list_jobs: list[dict]):
     with open(os.path.join(FRONTEND_DIR, "robots.txt"), "w") as f:
         f.write(f"User-agent: *\nAllow: /\n\nSitemap: {SITE_URL}/sitemap.xml\n")
 
-    logger.info("Generated sitemap with %d URLs", len(urls))
+    logger.info("Generated sitemap with %d URLs (%d category + %d job detail)",
+                len(urls), len(urls) - len(list_jobs), len(list_jobs))
