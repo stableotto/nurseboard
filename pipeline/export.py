@@ -1568,34 +1568,79 @@ def _generate_homepage(list_jobs: list[dict]):
     logger.info("Generated homepage with hub links")
 
 
-def _generate_sitemap(list_jobs: list[dict]):
-    """Generate sitemap.xml with category pages and job detail pages."""
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    urls = [f'  <url><loc>{SITE_URL}/</loc><lastmod>{now}</lastmod><changefreq>daily</changefreq><priority>1.0</priority></url>']
+MAX_URLS_PER_SITEMAP = 25000
 
-    # Category pages (role, state, company, metro)
+
+def _write_sitemap_file(path: str, urls: list[str]):
+    """Write a single sitemap file."""
+    content = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        + "\n".join(urls)
+        + "\n</urlset>"
+    )
+    with open(path, "w") as f:
+        f.write(content)
+
+
+def _generate_sitemap(list_jobs: list[dict]):
+    """Generate sitemap index with split sitemaps for category and job pages."""
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+    # Build category page URLs
+    category_urls = [f'  <url><loc>{SITE_URL}/</loc><lastmod>{now}</lastmod><changefreq>daily</changefreq><priority>1.0</priority></url>']
     jobs_dir = os.path.join(FRONTEND_DIR, "jobs")
     if os.path.isdir(jobs_dir):
         for root, dirs, files in os.walk(jobs_dir):
             if "index.html" in files:
                 rel = os.path.relpath(root, FRONTEND_DIR)
-                urls.append(f'  <url><loc>{SITE_URL}/{rel}/</loc><lastmod>{now}</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>')
+                category_urls.append(f'  <url><loc>{SITE_URL}/{rel}/</loc><lastmod>{now}</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>')
 
-    # Job detail pages
+    # Build job detail page URLs
+    job_urls = []
     for job in list_jobs:
         slug = job.get("slug")
         if not slug:
             continue
-        # Use posted_date or first_seen_at for lastmod
         lastmod = (job.get("posted_date") or job.get("first_seen_at") or now)[:10]
-        urls.append(f'  <url><loc>{SITE_URL}/listing/{slug}/</loc><lastmod>{lastmod}</lastmod><changefreq>weekly</changefreq><priority>0.5</priority></url>')
+        job_urls.append(f'  <url><loc>{SITE_URL}/listing/{slug}/</loc><lastmod>{lastmod}</lastmod><changefreq>weekly</changefreq><priority>0.5</priority></url>')
 
-    sitemap = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' + "\n".join(urls) + "\n</urlset>"
+    # Write sitemap files — split job URLs into chunks if needed
+    sitemap_files = []
+
+    # Sitemap 1: category pages (always fits in one file)
+    _write_sitemap_file(os.path.join(FRONTEND_DIR, "sitemap-pages.xml"), category_urls)
+    sitemap_files.append("sitemap-pages.xml")
+
+    # Sitemap 2+: job detail pages, chunked
+    for i in range(0, len(job_urls), MAX_URLS_PER_SITEMAP):
+        chunk = job_urls[i:i + MAX_URLS_PER_SITEMAP]
+        chunk_num = i // MAX_URLS_PER_SITEMAP + 1
+        filename = f"sitemap-jobs-{chunk_num}.xml"
+        _write_sitemap_file(os.path.join(FRONTEND_DIR, filename), chunk)
+        sitemap_files.append(filename)
+
+    # Write sitemap index
+    index_entries = []
+    for fname in sitemap_files:
+        index_entries.append(
+            f"  <sitemap>\n"
+            f"    <loc>{SITE_URL}/{fname}</loc>\n"
+            f"    <lastmod>{now}</lastmod>\n"
+            f"  </sitemap>"
+        )
+    sitemap_index = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        + "\n".join(index_entries)
+        + "\n</sitemapindex>"
+    )
     with open(os.path.join(FRONTEND_DIR, "sitemap.xml"), "w") as f:
-        f.write(sitemap)
+        f.write(sitemap_index)
 
     with open(os.path.join(FRONTEND_DIR, "robots.txt"), "w") as f:
         f.write(f"User-agent: *\nAllow: /\n\nSitemap: {SITE_URL}/sitemap.xml\n")
 
-    logger.info("Generated sitemap with %d URLs (%d category + %d job detail)",
-                len(urls), len(urls) - len(list_jobs), len(list_jobs))
+    total = len(category_urls) + len(job_urls)
+    logger.info("Generated sitemap index with %d sitemaps (%d category + %d job detail = %d URLs)",
+                len(sitemap_files), len(category_urls), len(job_urls), total)
