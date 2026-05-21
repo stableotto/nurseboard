@@ -545,7 +545,7 @@ def _page_shell(title: str, meta_desc: str, canonical: str, css_path: str,
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="ScrubShifts">
   <meta name="twitter:card" content="summary">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>+</text></svg>">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="{css_path}">
 </head>
 <body>
@@ -754,7 +754,7 @@ def _job_detail_html(job: dict, desc_html: str, css_path: str, logo_prefix: str 
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="ScrubShifts">
   <meta name="twitter:card" content="summary">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>+</text></svg>">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="{css_path}">
   {jsonld}
 </head>
