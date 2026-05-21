@@ -1,3 +1,12 @@
+const GTAG = `<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-4X9CP554TV"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-4X9CP554TV');
+</script>`;
+
 function escapeHtml(str) {
   return (str || "")
     .replace(/&/g, "&amp;")
@@ -39,6 +48,7 @@ function buildPage(job, slug) {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
+  ${GTAG}
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${title}</title>
@@ -105,7 +115,17 @@ export default {
       });
     }
 
-    // Everything else: pass through to static assets
-    return env.ASSETS.fetch(request);
+    // Everything else: pass through to static assets, inject gtag into HTML
+    const resp = await env.ASSETS.fetch(request);
+    const ct = resp.headers.get("content-type") || "";
+    if (ct.includes("text/html")) {
+      const html = await resp.text();
+      const injected = html.replace("<head>", `<head>\n  ${GTAG}`);
+      return new Response(injected, {
+        status: resp.status,
+        headers: resp.headers,
+      });
+    }
+    return resp;
   },
 };
