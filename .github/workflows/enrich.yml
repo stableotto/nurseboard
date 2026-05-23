@@ -119,3 +119,9 @@ jobs:
 
       - name: Ping Google to re-crawl sitemap
         run: curl -s "https://www.google.com/ping?sitemap=https://scrubshifts.com/sitemap.xml" || true
+
+      - name: Notify Google Indexing API
+        if: always()
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+        run: python -m pipeline.google_indexing frontend/sitemap-pages.xml frontend/sitemap-jobs-1.xml || true
