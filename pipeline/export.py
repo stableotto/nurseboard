@@ -15,7 +15,7 @@ from html import escape
 from pipeline.config import (
     DETAIL_DIR, EXPORT_DIR, JOBS_JSON, META_JSON,
     normalize_company_name, SEO_CATEGORIES, STATE_NAMES, STATE_SLUGS,
-    MIN_JOBS_FOR_PAGE,
+    MIN_JOBS_FOR_PAGE, CORE_CATEGORY_SLUGS, CORE_STATE_ABBRS,
 )
 from pipeline.metros import get_metro, get_metro_name, METROS
 
@@ -1184,11 +1184,18 @@ def _generate_all_category_pages(list_jobs: list[dict]):
         st = j.get("state")
         if st:
             by_state.setdefault(st, []).append(j)
+    # Ensure core (nav/footer-linked) states are always present so they render
+    # even if a run somehow has zero jobs for them.
+    for abbr in CORE_STATE_ABBRS:
+        by_state.setdefault(abbr, [])
 
     # 1. Role-only pages: /jobs/{role}/
     for slug, display, regex, meta_tmpl, matcher in cat_matchers:
         matched = [j for j in list_jobs if matcher(j)]
-        if len(matched) < MIN_JOBS_FOR_PAGE:
+        # Core categories are linked from every page's nav/footer, so always
+        # render them even on a low-volume day — otherwise those links 404 and
+        # the page drops out of the index until counts recover.
+        if len(matched) < MIN_JOBS_FOR_PAGE and slug not in CORE_CATEGORY_SLUGS:
             continue
 
         cat_filter = {}
@@ -1269,7 +1276,8 @@ def _generate_all_category_pages(list_jobs: list[dict]):
 
     # 3. State-only pages: /jobs/{state-name}/
     for abbr, state_jobs in by_state.items():
-        if len(state_jobs) < MIN_JOBS_FOR_PAGE:
+        # Core states are linked from every page's footer — always render them.
+        if len(state_jobs) < MIN_JOBS_FOR_PAGE and abbr not in CORE_STATE_ABBRS:
             continue
 
         state_name = STATE_NAMES.get(abbr, abbr)
