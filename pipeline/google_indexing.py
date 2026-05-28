@@ -86,11 +86,24 @@ def _get_access_token(sa_json: dict) -> str:
     return resp.json()["access_token"]
 
 
-def _parse_sitemap_urls(sitemap_path: str) -> list[str]:
-    """Extract URLs from a sitemap XML file."""
+def _parse_sitemap_entries(sitemap_path: str) -> list[tuple[str, str]]:
+    """Extract (loc, lastmod) pairs from a sitemap XML file."""
     tree = ET.parse(sitemap_path)
     ns = {"s": "http://www.sitemaps.org/schemas/sitemap/0.9"}
-    return [u.find("s:loc", ns).text for u in tree.findall("s:url", ns)]
+    entries = []
+    for u in tree.findall("s:url", ns):
+        loc_el = u.find("s:loc", ns)
+        if loc_el is None or not loc_el.text:
+            continue
+        lm_el = u.find("s:lastmod", ns)
+        lastmod = lm_el.text if lm_el is not None and lm_el.text else ""
+        entries.append((loc_el.text, lastmod))
+    return entries
+
+
+def _parse_sitemap_urls(sitemap_path: str) -> list[str]:
+    """Extract URLs from a sitemap XML file."""
+    return [loc for loc, _ in _parse_sitemap_entries(sitemap_path)]
 
 
 def notify_urls(urls: list[str], access_token: str, action: str = "URL_UPDATED") -> dict:
@@ -146,28 +159,36 @@ def run(sitemap_paths: list[str]):
     logger.info("  Getting access token...")
     access_token = _get_access_token(sa_json)
 
-    all_urls = []
+    entries = []
     for path in sitemap_paths:
         if os.path.exists(path):
-            urls = _parse_sitemap_urls(path)
-            logger.info("  Parsed %d URLs from %s", len(urls), path)
-            all_urls.extend(urls)
+            parsed = _parse_sitemap_entries(path)
+            logger.info("  Parsed %d URLs from %s", len(parsed), path)
+            entries.extend(parsed)
         else:
             logger.warning("  Sitemap not found: %s", path)
 
-    if not all_urls:
+    if not entries:
         logger.warning("  No URLs to submit")
         return
 
-    # Prioritize: category pages first (fewer, higher value), then job pages
-    page_urls = [u for u in all_urls if "/listing/" not in u]
-    job_urls = [u for u in all_urls if "/listing/" in u]
+    # Category/landing pages: always submit (they rotate their job lists daily
+    # and are the pages we most want kept fresh in the index).
+    page_urls = [loc for loc, _ in entries if "/listing/" not in loc]
 
-    # Submit category pages first, then fill remaining quota with job URLs
+    # Job detail pages: the daily quota is far smaller than the catalog, so
+    # spend it on the NEWEST jobs (by sitemap lastmod, descending). Re-pinging
+    # the same first-N URLs every run — the previous behavior — meant freshly
+    # added jobs were never notified and often expired before getting indexed.
+    job_entries = [(loc, lm) for loc, lm in entries if "/listing/" in loc]
+    job_entries.sort(key=lambda e: e[1], reverse=True)
+    job_urls = [loc for loc, _ in job_entries]
+
+    # Category pages first, then fill remaining quota with the newest jobs.
     submit_urls = page_urls + job_urls
-    total = min(len(submit_urls), MAX_URLS_PER_RUN)
-    logger.info("  Submitting %d URLs (%d pages + %d jobs, capped at %d)",
-                total, len(page_urls), min(len(job_urls), max(0, MAX_URLS_PER_RUN - len(page_urls))),
+    jobs_submitted = max(0, min(len(job_urls), MAX_URLS_PER_RUN - len(page_urls)))
+    logger.info("  Submitting %d URLs (%d pages + %d newest jobs, capped at %d)",
+                min(len(submit_urls), MAX_URLS_PER_RUN), len(page_urls), jobs_submitted,
                 MAX_URLS_PER_RUN)
 
     result = notify_urls(submit_urls, access_token)

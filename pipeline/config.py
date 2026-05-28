@@ -191,6 +191,10 @@ CONSECUTIVE_FAIL_SKIP = 10
 # Freshness
 MAX_JOB_AGE_DAYS = 30
 UNENRICHED_GRACE_DAYS = 14
+# Export age backstop: live jobs (removed_at IS NULL) are exported for their
+# real lifetime so Google has time to index them. This is only a safety net to
+# drop rows whose removed_at was never set (e.g. a scraper silently breaking).
+EXPORT_AGE_BACKSTOP_DAYS = 365
 
 # Pagination
 JOBS_PER_PAGE = 25

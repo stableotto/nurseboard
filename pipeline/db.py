@@ -7,7 +7,11 @@ import os
 import sqlite3
 from datetime import datetime, timedelta, timezone
 
-from pipeline.config import MAX_ENRICH_FAILURES, MAX_JOB_AGE_DAYS, UNENRICHED_GRACE_DAYS
+from pipeline.config import (
+    EXPORT_AGE_BACKSTOP_DAYS,
+    MAX_ENRICH_FAILURES,
+    UNENRICHED_GRACE_DAYS,
+)
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS jobs (
@@ -223,8 +227,20 @@ def mark_removed(conn: sqlite3.Connection, current_urls: set[str]):
 
 
 def get_exportable_jobs(conn: sqlite3.Connection) -> list[dict]:
-    """Get enriched jobs with descriptions, posted within 30 days."""
-    cutoff_posted = (datetime.now(timezone.utc) - timedelta(days=MAX_JOB_AGE_DAYS)).isoformat()
+    """Get enriched jobs that are still live on their source.
+
+    A job is exported as long as it has not been marked removed — i.e. it is
+    still seen in scrapes and passes freshness checks (see pipeline/freshness.py
+    and mark_removed()). We intentionally do NOT drop jobs purely because their
+    posted_date is older than 30 days: a still-open posting that vanishes at day
+    30 produces a dead URL that Google often discovers but never indexes in time
+    (soft 404 / "crawled - currently not indexed"). Keeping live jobs indexable
+    for their real lifetime is what lets new jobs actually get indexed.
+
+    A generous age backstop guards against stale rows lingering if a scraper
+    silently stops updating removed_at.
+    """
+    cutoff_posted = (datetime.now(timezone.utc) - timedelta(days=EXPORT_AGE_BACKSTOP_DAYS)).isoformat()
 
     rows = conn.execute(
         """SELECT url, title, company_slug, company_name, location,

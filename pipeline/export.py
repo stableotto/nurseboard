@@ -698,13 +698,14 @@ def _build_job_jsonld(job: dict, desc_html: str, salary_display: str) -> str:
             base_salary["value"]["value"] = salary_max / 100
         ld["baseSalary"] = base_salary
 
-    # Valid through (30 days from posted)
-    try:
-        from datetime import timedelta as td
-        dt = datetime.fromisoformat(date_posted)
-        ld["validThrough"] = (dt + td(days=30)).strftime("%Y-%m-%d")
-    except Exception:
-        pass
+    # Valid through: a rolling window from this export run, not from the posted
+    # date. Jobs are re-exported daily while they remain live, so this keeps the
+    # window in the future for as long as we serve the page (and lets it lapse
+    # naturally ~30 days after the job stops being exported). Anchoring to
+    # posted_date instead would mark still-live postings as expired once they
+    # pass 30 days old.
+    from datetime import timedelta as td
+    ld["validThrough"] = (datetime.now(timezone.utc) + td(days=30)).strftime("%Y-%m-%d")
 
     return f'<script type="application/ld+json">{json.dumps(ld, separators=(",", ":"))}</script>'
 
