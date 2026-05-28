@@ -191,12 +191,33 @@ CONSECUTIVE_FAIL_SKIP = 10
 # Freshness
 MAX_JOB_AGE_DAYS = 30
 UNENRICHED_GRACE_DAYS = 14
+# Export age backstop: live jobs (removed_at IS NULL) are exported for their
+# real lifetime so Google has time to index them. This is only a safety net to
+# drop rows whose removed_at was never set (e.g. a scraper silently breaking).
+EXPORT_AGE_BACKSTOP_DAYS = 365
 
 # Pagination
 JOBS_PER_PAGE = 25
 
 # Minimum jobs required to generate a pSEO page (avoids thin content)
 MIN_JOBS_FOR_PAGE = 3
+
+# "Core" categories are hardcoded as nav/footer links in the site templates
+# (see CLAUDE.md "Template locations"): the footer/nav in pipeline/export.py
+# _page_shell, frontend/_worker.js, frontend/index.html, alerts.html, and
+# promote.html. Unlike the dynamic homepage hub links, these are a fixed set
+# that does not adapt to the day's data — so each one MUST always render or
+# every page on the site links to a 404. They bypass MIN_JOBS_FOR_PAGE.
+# Keep this in sync if you change the hardcoded links in those templates.
+CORE_CATEGORY_SLUGS = {
+    "rn", "nurse-practitioner", "lpn", "cna", "crna", "icu-nurse", "er-nurse",
+    "travel-nurse", "remote-nurse", "per-diem", "night-shift", "part-time-nurse",
+    "nursing-with-salary", "home-health", "physical-therapist",
+    "occupational-therapist", "speech-language-pathologist",
+    "respiratory-therapist", "radiology-technologist", "pharmacist",
+    "medical-assistant", "paramedic",
+}
+CORE_STATE_ABBRS = {"CA", "TX", "NY", "FL", "IL", "MA", "TN", "VA"}
 
 # SEO category pages: (slug, display_name, title_regex, meta_description)
 SEO_CATEGORIES = [

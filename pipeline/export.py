@@ -15,7 +15,7 @@ from html import escape
 from pipeline.config import (
     DETAIL_DIR, EXPORT_DIR, JOBS_JSON, META_JSON,
     normalize_company_name, SEO_CATEGORIES, STATE_NAMES, STATE_SLUGS,
-    MIN_JOBS_FOR_PAGE,
+    MIN_JOBS_FOR_PAGE, CORE_CATEGORY_SLUGS, CORE_STATE_ABBRS,
 )
 from pipeline.metros import get_metro, get_metro_name, METROS
 
@@ -698,13 +698,14 @@ def _build_job_jsonld(job: dict, desc_html: str, salary_display: str) -> str:
             base_salary["value"]["value"] = salary_max / 100
         ld["baseSalary"] = base_salary
 
-    # Valid through (30 days from posted)
-    try:
-        from datetime import timedelta as td
-        dt = datetime.fromisoformat(date_posted)
-        ld["validThrough"] = (dt + td(days=30)).strftime("%Y-%m-%d")
-    except Exception:
-        pass
+    # Valid through: a rolling window from this export run, not from the posted
+    # date. Jobs are re-exported daily while they remain live, so this keeps the
+    # window in the future for as long as we serve the page (and lets it lapse
+    # naturally ~30 days after the job stops being exported). Anchoring to
+    # posted_date instead would mark still-live postings as expired once they
+    # pass 30 days old.
+    from datetime import timedelta as td
+    ld["validThrough"] = (datetime.now(timezone.utc) + td(days=30)).strftime("%Y-%m-%d")
 
     return f'<script type="application/ld+json">{json.dumps(ld, separators=(",", ":"))}</script>'
 
@@ -1183,11 +1184,18 @@ def _generate_all_category_pages(list_jobs: list[dict]):
         st = j.get("state")
         if st:
             by_state.setdefault(st, []).append(j)
+    # Ensure core (nav/footer-linked) states are always present so they render
+    # even if a run somehow has zero jobs for them.
+    for abbr in CORE_STATE_ABBRS:
+        by_state.setdefault(abbr, [])
 
     # 1. Role-only pages: /jobs/{role}/
     for slug, display, regex, meta_tmpl, matcher in cat_matchers:
         matched = [j for j in list_jobs if matcher(j)]
-        if len(matched) < MIN_JOBS_FOR_PAGE:
+        # Core categories are linked from every page's nav/footer, so always
+        # render them even on a low-volume day — otherwise those links 404 and
+        # the page drops out of the index until counts recover.
+        if len(matched) < MIN_JOBS_FOR_PAGE and slug not in CORE_CATEGORY_SLUGS:
             continue
 
         cat_filter = {}
@@ -1268,7 +1276,8 @@ def _generate_all_category_pages(list_jobs: list[dict]):
 
     # 3. State-only pages: /jobs/{state-name}/
     for abbr, state_jobs in by_state.items():
-        if len(state_jobs) < MIN_JOBS_FOR_PAGE:
+        # Core states are linked from every page's footer — always render them.
+        if len(state_jobs) < MIN_JOBS_FOR_PAGE and abbr not in CORE_STATE_ABBRS:
             continue
 
         state_name = STATE_NAMES.get(abbr, abbr)
