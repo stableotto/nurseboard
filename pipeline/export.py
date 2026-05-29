@@ -1072,6 +1072,32 @@ def _logo_filename(company_slug: str) -> str | None:
     return None
 
 
+# Cloudflare Pages rejects any single file larger than 25 MiB. Keep jobs.json
+# safely under that; entries are newest-first so the cap drops only the oldest.
+MAX_JOBS_JSON_BYTES = 22 * 1024 * 1024
+
+
+def _cap_jobs_json(entries: list[dict]) -> list[dict]:
+    """Return the newest prefix of entries whose JSON fits MAX_JOBS_JSON_BYTES."""
+    def size(items: list[dict]) -> int:
+        return len(json.dumps(items, separators=(",", ":")).encode("utf-8"))
+
+    if size(entries) <= MAX_JOBS_JSON_BYTES:
+        return entries
+
+    # Estimate a starting cap from the average entry size, then shrink to fit.
+    avg = max(size(entries) / max(len(entries), 1), 1)
+    keep = int(MAX_JOBS_JSON_BYTES / avg)
+    while keep > 0 and size(entries[:keep]) > MAX_JOBS_JSON_BYTES:
+        keep = int(keep * 0.95)
+    logger.warning(
+        "jobs.json exceeds %d MiB at %d jobs; capping homepage search dataset "
+        "to %d newest jobs (full set still covered by SEO pages + sitemap)",
+        MAX_JOBS_JSON_BYTES // (1024 * 1024), len(entries), keep,
+    )
+    return entries[:keep]
+
+
 def export_for_frontend(jobs: list[dict], stats: dict):
     """Export jobs to frontend data files + generate pre-rendered SEO pages."""
     os.makedirs(EXPORT_DIR, exist_ok=True)
@@ -1096,9 +1122,14 @@ def export_for_frontend(jobs: list[dict], stats: dict):
     if skipped_non_us:
         logger.info("Skipped %d non-US jobs from export", skipped_non_us)
 
-    # Write jobs.json for JS interactivity
+    # Write jobs.json for JS interactivity. Cloudflare Pages rejects any single
+    # file over 25 MiB, and exporting every live job can exceed that. Cap to the
+    # newest jobs that fit a safe budget — SEO is unaffected because indexing is
+    # driven by the pre-rendered category/detail pages and the sitemap (which
+    # still cover the full live set); jobs.json only powers homepage search.
+    client_jobs = _cap_jobs_json(list_jobs)
     with open(JOBS_JSON, "w") as f:
-        json.dump(list_jobs, f, separators=(",", ":"))
+        json.dump(client_jobs, f, separators=(",", ":"))
 
     # Write meta.json
     meta = {
