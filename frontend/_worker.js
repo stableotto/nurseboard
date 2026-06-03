@@ -211,6 +211,19 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
+    // Consolidate to the canonical domain. The site was previously served at
+    // nurseboard.pages.dev; Google indexed that host and now treats
+    // scrubshifts.com as a duplicate ("Google chose different canonical").
+    // A 301 from any *.pages.dev host is stronger than rel=canonical: the old
+    // URLs stop returning 200, so Google drops them and consolidates all
+    // ranking signals onto scrubshifts.com.
+    if (url.hostname.endsWith(".pages.dev")) {
+      return Response.redirect(
+        `https://scrubshifts.com${url.pathname}${url.search}`,
+        301
+      );
+    }
+
     // Serve job detail page for /listing/* paths
     if (url.pathname.startsWith("/listing/")) {
       const slug = url.pathname.replace(/^\/listing\//, "").replace(/\/$/, "");
