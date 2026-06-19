@@ -20,12 +20,18 @@ function escapeAttr(str) {
 }
 
 function stripHtml(html) {
-  return (html || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  return (html || "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 // Strip active content from enriched description HTML before SSR.
 function sanitizeHtml(html) {
-  return (html || "").replace(/<(script|style|iframe|object|embed)[\s\S]*?<\/\1>/gi, "");
+  return (html || "").replace(
+    /<(script|style|iframe|object|embed)[\s\S]*?<\/\1>/gi,
+    "",
+  );
 }
 
 function slugify(text) {
@@ -53,9 +59,18 @@ function formatSalary(min, max) {
 }
 
 const AVATAR_COLORS = [
-  "#6366f1", "#8b5cf6", "#ec4899", "#f43f5e",
-  "#f97316", "#eab308", "#22c55e", "#14b8a6",
-  "#06b6d4", "#3b82f6", "#a855f7", "#e11d48",
+  "#6366f1",
+  "#8b5cf6",
+  "#ec4899",
+  "#f43f5e",
+  "#f97316",
+  "#eab308",
+  "#22c55e",
+  "#14b8a6",
+  "#06b6d4",
+  "#3b82f6",
+  "#a855f7",
+  "#e11d48",
 ];
 
 // Mirrors frontend/js/filters.js companyColor().
@@ -67,7 +82,20 @@ function companyColor(name) {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
 
 // Manual format (avoids Workers ICU dependence). Mirrors frontend/js/time.js formatDate().
 function formatDate(dateStr) {
@@ -101,9 +129,10 @@ function buildBody(job) {
     .map((d) => `<span class="dept-tag">${escapeHtml(d)}</span>`)
     .join("");
 
-  const descHtml = (job.description_html || job.description_plain)
-    ? sanitizeHtml(job.description_html || "")
-    : '<p class="no-description">Full description not yet available. Click "Apply" to view on the original posting.</p>';
+  const descHtml =
+    job.description_html || job.description_plain
+      ? sanitizeHtml(job.description_html || "")
+      : '<p class="no-description">Full description not yet available. Click "Apply" to view on the original posting.</p>';
 
   const initial = (job.company_name || "?").charAt(0).toUpperCase();
 
@@ -155,7 +184,7 @@ function buildPage(job, slug) {
   const description = job
     ? escapeAttr(
         stripHtml(job.description_html || "").slice(0, 160) ||
-          `${job.title} at ${job.company_name}${job.location ? ` in ${job.location}` : ""}`
+          `${job.title} at ${job.company_name}${job.location ? ` in ${job.location}` : ""}`,
       )
     : "This job is no longer available.";
 
@@ -165,9 +194,7 @@ function buildPage(job, slug) {
 
   const jsonld = job && job.jsonld ? job.jsonld : "";
 
-  const robotsMeta = job
-    ? ""
-    : '<meta name="robots" content="noindex">';
+  const robotsMeta = job ? "" : '<meta name="robots" content="noindex">';
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -220,8 +247,48 @@ export default {
     if (url.hostname.endsWith(".pages.dev")) {
       return Response.redirect(
         `https://scrubshifts.com${url.pathname}${url.search}`,
-        301
+        301,
       );
+    }
+
+    // Consolidate www → apex. www.scrubshifts.com served 200s, creating a
+    // duplicate host; a 301 keeps all signals on the canonical apex domain.
+    if (url.hostname === "www.scrubshifts.com") {
+      return Response.redirect(
+        `https://scrubshifts.com${url.pathname}${url.search}`,
+        301,
+      );
+    }
+
+    // Legacy URL scheme: the site previously served job detail pages at
+    // /job.html?id=<id> (and /job?id=<id>). Google still has these indexed.
+    // 301 them to the canonical /listing/<slug>/ so crawl budget and ranking
+    // signals consolidate; 410 if the job is gone so Google drops the old URL.
+    if (url.pathname === "/job.html" || url.pathname === "/job") {
+      const id = url.searchParams.get("id") || "";
+      if (id.length >= 12) {
+        const prefix = id.substring(0, 2);
+        try {
+          const dataReq = new Request(
+            new URL(`/data/jobs/${prefix}.json`, url.origin),
+          );
+          const resp = await env.ASSETS.fetch(dataReq);
+          if (resp.ok) {
+            const chunk = await resp.json();
+            const job = chunk[id];
+            if (job && job.slug) {
+              return Response.redirect(
+                `https://scrubshifts.com/listing/${job.slug}/`,
+                301,
+              );
+            }
+          }
+        } catch {}
+      }
+      return new Response(buildPage(null, ""), {
+        status: 410,
+        headers: { "Content-Type": "text/html;charset=UTF-8" },
+      });
     }
 
     // Serve job detail page for /listing/* paths
@@ -237,7 +304,9 @@ export default {
       if (validId) {
         const prefix = id.substring(0, 2);
         try {
-          const dataReq = new Request(new URL(`/data/jobs/${prefix}.json`, url.origin));
+          const dataReq = new Request(
+            new URL(`/data/jobs/${prefix}.json`, url.origin),
+          );
           const resp = await env.ASSETS.fetch(dataReq);
           if (resp.ok) {
             const chunk = await resp.json();
