@@ -33,6 +33,14 @@ SITE_URL = "https://scrubshifts.com"
 FRONTEND_DIR = "frontend"
 LOGOS_DIR = os.path.join(FRONTEND_DIR, "logos")
 
+# Minimum jobs for a pSEO page to be *indexable*. Pages with at least
+# MIN_JOBS_FOR_PAGE (so they exist for users + internal linking) but fewer
+# than this are emitted with <meta robots="noindex,follow"> and excluded from
+# the sitemap. This stops thin role×state / metro / company combos from being
+# crawled-and-not-indexed (a site-wide quality drag in GSC). Core nav/footer
+# pages (CORE_CATEGORY_SLUGS / CORE_STATE_ABBRS) stay indexable regardless.
+MIN_JOBS_FOR_INDEX = 10
+
 # Regex to extract tenant, wd_num, site_id from Workday job URLs
 _WD_URL_RE = re.compile(
     r"https?://([^.]+)\.wd(\d+)\.myworkdayjobs\.com/(?:[a-z]{2}-[A-Z]{2}/)?([^/]+)"
@@ -652,14 +660,16 @@ def _page_shell(
     js_path: str,
     data_path: str,
     body: str,
+    noindex: bool = False,
 ) -> str:
+    robots_meta = '\n  <meta name="robots" content="noindex,follow">' if noindex else ""
     return f'''<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{escape(title)}</title>
-  <meta name="description" content="{escape(meta_desc)}">
+  <meta name="description" content="{escape(meta_desc)}">{robots_meta}
   <link rel="canonical" href="{canonical}">
   <meta property="og:title" content="{escape(title)}">
   <meta property="og:description" content="{escape(meta_desc)}">
@@ -945,6 +955,7 @@ def _category_page_html(
     jobs: list[dict],
     category_filter_json: str,
     extra_seo: str = "",
+    noindex: bool = False,
 ) -> str:
     count = len(jobs)
     # Derive logo prefix from css_path (e.g., "../../css/style.css" -> "../../")
@@ -1002,6 +1013,7 @@ def _category_page_html(
     </section>
 
     <script>window.__CATEGORY_FILTER = {category_filter_json};</script>""",
+        noindex=noindex,
     )
 
 
@@ -1456,6 +1468,8 @@ def _generate_all_category_pages(list_jobs: list[dict]):
             jobs=matched,
             category_filter_json=json.dumps(cat_filter),
             extra_seo=seo_extra,
+            noindex=slug not in CORE_CATEGORY_SLUGS
+            and len(matched) < MIN_JOBS_FOR_INDEX,
         )
         with open(os.path.join(page_dir, "index.html"), "w") as f:
             f.write(html)
@@ -1488,6 +1502,7 @@ def _generate_all_category_pages(list_jobs: list[dict]):
                 jobs=state_matched,
                 category_filter_json=json.dumps(state_filter),
                 extra_seo=f"<p>We track {display.lower()} positions in {state_name} from {len(set(j['company_name'] for j in state_matched))} healthcare employers.</p>",
+                noindex=len(state_matched) < MIN_JOBS_FOR_INDEX,
             )
             with open(os.path.join(cross_dir, "index.html"), "w") as f:
                 f.write(html)
@@ -1534,6 +1549,8 @@ def _generate_all_category_pages(list_jobs: list[dict]):
             jobs=state_jobs,
             category_filter_json=json.dumps({"state": abbr}),
             extra_seo=state_seo,
+            noindex=abbr not in CORE_STATE_ABBRS
+            and len(state_jobs) < MIN_JOBS_FOR_INDEX,
         )
         with open(os.path.join(page_dir, "index.html"), "w") as f:
             f.write(html)
@@ -1584,6 +1601,7 @@ def _generate_all_category_pages(list_jobs: list[dict]):
             jobs=metro_jobs,
             category_filter_json=json.dumps({"metro": metro_slug}),
             extra_seo=metro_seo,
+            noindex=len(metro_jobs) < MIN_JOBS_FOR_INDEX,
         )
         with open(os.path.join(page_dir, "index.html"), "w") as f:
             f.write(html)
@@ -1646,6 +1664,7 @@ def _generate_all_category_pages(list_jobs: list[dict]):
             jobs=company_jobs,
             category_filter_json=json.dumps({"company": company_slug}),
             extra_seo=seo_block,
+            noindex=len(company_jobs) < MIN_JOBS_FOR_INDEX,
         )
         with open(os.path.join(page_dir, "index.html"), "w") as f:
             f.write(html)
@@ -1850,6 +1869,12 @@ def _generate_sitemap(list_jobs: list[dict]):
     if os.path.isdir(jobs_dir):
         for root, dirs, files in os.walk(jobs_dir):
             if "index.html" in files:
+                # Skip thin pages flagged noindex (see MIN_JOBS_FOR_INDEX): the
+                # sitemap must only advertise indexable URLs, or Google flags a
+                # "submitted URL marked noindex" conflict.
+                with open(os.path.join(root, "index.html")) as fh:
+                    if 'name="robots" content="noindex' in fh.read():
+                        continue
                 rel = os.path.relpath(root, FRONTEND_DIR)
                 category_urls.append(
                     f"  <url><loc>{SITE_URL}/{rel}/</loc><lastmod>{now}</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>"
