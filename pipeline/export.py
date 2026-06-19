@@ -13,9 +13,17 @@ from datetime import datetime, timezone
 from html import escape
 
 from pipeline.config import (
-    DETAIL_DIR, EXPORT_DIR, JOBS_JSON, META_JSON,
-    normalize_company_name, SEO_CATEGORIES, STATE_NAMES, STATE_SLUGS,
-    MIN_JOBS_FOR_PAGE, CORE_CATEGORY_SLUGS, CORE_STATE_ABBRS,
+    DETAIL_DIR,
+    EXPORT_DIR,
+    JOBS_JSON,
+    META_JSON,
+    normalize_company_name,
+    SEO_CATEGORIES,
+    STATE_NAMES,
+    STATE_SLUGS,
+    MIN_JOBS_FOR_PAGE,
+    CORE_CATEGORY_SLUGS,
+    CORE_STATE_ABBRS,
 )
 from pipeline.metros import get_metro, get_metro_name, METROS
 
@@ -26,7 +34,9 @@ FRONTEND_DIR = "frontend"
 LOGOS_DIR = os.path.join(FRONTEND_DIR, "logos")
 
 # Regex to extract tenant, wd_num, site_id from Workday job URLs
-_WD_URL_RE = re.compile(r"https?://([^.]+)\.wd(\d+)\.myworkdayjobs\.com/(?:[a-z]{2}-[A-Z]{2}/)?([^/]+)")
+_WD_URL_RE = re.compile(
+    r"https?://([^.]+)\.wd(\d+)\.myworkdayjobs\.com/(?:[a-z]{2}-[A-Z]{2}/)?([^/]+)"
+)
 
 # Cache of company_slug -> logo filename (populated by _download_logos)
 _LOGO_CACHE: set[str] = set()
@@ -42,11 +52,35 @@ _FULL_STATE_NAMES = {v: k for k, v in STATE_NAMES.items()}
 # Shift detection patterns (checked against title, then description first line)
 _SHIFT_PATTERNS = [
     # Check rotating FIRST — "Day/Night Rotating" should be rotating, not nights
-    ("rotating", re.compile(r"\brotating\b|\bvariable\b|\bday\s*/\s*night|\bnight\s*/\s*day|\bdays?\s*/\s*nights?|\bnights?\s*/\s*days?", re.IGNORECASE)),
-    ("prn", re.compile(r"\bPRN\b|\bper[\s\-]?diem\b|\bas[\s\-]needed\b", re.IGNORECASE)),
-    ("nights", re.compile(r"\bnight\s*shift|\bnights?\b|\b7p\b|\bnoc\b|\bovernight\b|\b3rd\s+shift|\bthird\s+shift", re.IGNORECASE)),
-    ("days", re.compile(r"\bday\s*shift|\bdays\b(?!\s*ago)|\b7a\b|\b1st\s+shift|\bfirst\s+shift", re.IGNORECASE)),
-    ("evenings", re.compile(r"\bevening\b|\b2nd\s+shift|\bsecond\s+shift|\b3p\b", re.IGNORECASE)),
+    (
+        "rotating",
+        re.compile(
+            r"\brotating\b|\bvariable\b|\bday\s*/\s*night|\bnight\s*/\s*day|\bdays?\s*/\s*nights?|\bnights?\s*/\s*days?",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "prn",
+        re.compile(r"\bPRN\b|\bper[\s\-]?diem\b|\bas[\s\-]needed\b", re.IGNORECASE),
+    ),
+    (
+        "nights",
+        re.compile(
+            r"\bnight\s*shift|\bnights?\b|\b7p\b|\bnoc\b|\bovernight\b|\b3rd\s+shift|\bthird\s+shift",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "days",
+        re.compile(
+            r"\bday\s*shift|\bdays\b(?!\s*ago)|\b7a\b|\b1st\s+shift|\bfirst\s+shift",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "evenings",
+        re.compile(r"\bevening\b|\b2nd\s+shift|\bsecond\s+shift|\b3p\b", re.IGNORECASE),
+    ),
     ("weekends", re.compile(r"\bweekend\b|\bsat\b.*\bsun\b|\bbaylor\b", re.IGNORECASE)),
 ]
 
@@ -74,6 +108,7 @@ _HOURLY_RE = re.compile(r"/\s*(?:hr|hour)", re.IGNORECASE)
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _extract_state(location: str | None) -> str | None:
     if not location:
@@ -111,13 +146,45 @@ _NON_US_COMPANIES = re.compile(
 # UK/Irish cities that commonly appear without country suffix
 # (Only cities that do NOT share a name with a major US city)
 _NON_US_CITIES = {
-    "london", "manchester", "birmingham", "liverpool", "leeds", "sheffield",
-    "bristol", "edinburgh", "glasgow", "cardiff", "belfast", "nottingham",
-    "coventry", "brighton", "bath", "oxford", "cambridge", "exeter", "york",
-    "southampton", "derby", "stoke-on-trent", "wolverhampton", "sunderland",
-    "cheltenham", "chester", "watford", "ipswich", "norwich", "luton",
-    "bournemouth", "plymouth", "dundee", "aberdeen", "dublin",
-    "north london", "south london", "east london", "west london",
+    "london",
+    "manchester",
+    "birmingham",
+    "liverpool",
+    "leeds",
+    "sheffield",
+    "bristol",
+    "edinburgh",
+    "glasgow",
+    "cardiff",
+    "belfast",
+    "nottingham",
+    "coventry",
+    "brighton",
+    "bath",
+    "oxford",
+    "cambridge",
+    "exeter",
+    "york",
+    "southampton",
+    "derby",
+    "stoke-on-trent",
+    "wolverhampton",
+    "sunderland",
+    "cheltenham",
+    "chester",
+    "watford",
+    "ipswich",
+    "norwich",
+    "luton",
+    "bournemouth",
+    "plymouth",
+    "dundee",
+    "aberdeen",
+    "dublin",
+    "north london",
+    "south london",
+    "east london",
+    "west london",
 }
 
 
@@ -127,7 +194,9 @@ def _is_us_or_remote(location: str | None, company_name: str | None = None) -> b
         return False
     loc_lower = location.lower().strip()
     # Remote jobs are fine
-    if any(kw in loc_lower for kw in ("remote", "virtual", "telehealth", "work from home")):
+    if any(
+        kw in loc_lower for kw in ("remote", "virtual", "telehealth", "work from home")
+    ):
         return True
     # Reject known non-US companies (unless location has a US state)
     if company_name and _NON_US_COMPANIES.search(company_name):
@@ -164,15 +233,27 @@ _CITY_REGION_STATE_RE = re.compile(
 )
 
 # Street address pattern (number + street name)
-_STREET_RE = re.compile(r"\d+\s+[A-Za-z]+\s+(?:Ave|Avenue|Blvd|Boulevard|St|Street|Rd|Road|Dr|Drive|Ln|Lane|Way|Ct|Court|Pkwy|Parkway|Hwy|Highway)\b\.?", re.IGNORECASE)
+_STREET_RE = re.compile(
+    r"\d+\s+[A-Za-z]+\s+(?:Ave|Avenue|Blvd|Boulevard|St|Street|Rd|Road|Dr|Drive|Ln|Lane|Way|Ct|Court|Pkwy|Parkway|Hwy|Highway)\b\.?",
+    re.IGNORECASE,
+)
 
 # US county name → state abbreviation (for ATS systems that use county instead of state)
 _COUNTY_TO_STATE = {
     # New York (Northwell Health etc.)
-    "Nassau": "NY", "Suffolk": "NY", "Westchester": "NY", "Queens": "NY",
-    "Richmond": "NY", "Dutchess": "NY", "Kings": "NY", "Bronx": "NY",
+    "Nassau": "NY",
+    "Suffolk": "NY",
+    "Westchester": "NY",
+    "Queens": "NY",
+    "Richmond": "NY",
+    "Dutchess": "NY",
+    "Kings": "NY",
+    "Bronx": "NY",
     # Connecticut
-    "Fairfield": "CT", "Litchfield": "CT", "Hartford": "CT", "New Haven": "CT",
+    "Fairfield": "CT",
+    "Litchfield": "CT",
+    "Hartford": "CT",
+    "New Haven": "CT",
 }
 
 
@@ -255,7 +336,9 @@ def _normalize_location(location: str | None) -> str | None:
 
     # Match "City, Full State Name"
     for full_name, abbr in _FULL_STATE_NAMES.items():
-        pattern = re.compile(rf"([A-Za-z][A-Za-z .'-]+),\s*{re.escape(full_name)}", re.IGNORECASE)
+        pattern = re.compile(
+            rf"([A-Za-z][A-Za-z .'-]+),\s*{re.escape(full_name)}", re.IGNORECASE
+        )
         m = pattern.search(loc)
         if m:
             city = m.group(1).strip().rstrip(",")
@@ -265,7 +348,11 @@ def _normalize_location(location: str | None) -> str | None:
     for full_name, abbr in _FULL_STATE_NAMES.items():
         if full_name.lower() in loc.lower():
             # Try to get city before state name
-            m = re.search(rf"([A-Za-z][A-Za-z .'-]+),\s*{re.escape(full_name)}", loc, re.IGNORECASE)
+            m = re.search(
+                rf"([A-Za-z][A-Za-z .'-]+),\s*{re.escape(full_name)}",
+                loc,
+                re.IGNORECASE,
+            )
             if m:
                 return f"{m.group(1).strip()}, {abbr}"
             return full_name
@@ -285,7 +372,9 @@ _SALARY_CONTEXT_RE = re.compile(
 )
 
 
-def _extract_salary_from_description(desc_plain: str | None, existing_min, existing_max) -> tuple:
+def _extract_salary_from_description(
+    desc_plain: str | None, existing_min, existing_max
+) -> tuple:
     """Extract salary from description text if not already present."""
     if existing_min is not None or not desc_plain:
         return existing_min, existing_max
@@ -308,7 +397,7 @@ def _extract_salary_from_description(desc_plain: str | None, existing_min, exist
         high *= 1000
 
     # Check if hourly (look at context around the match)
-    context = desc_plain[max(0, m.start() - 30):m.end() + 40]
+    context = desc_plain[max(0, m.start() - 30) : m.end() + 40]
     is_hourly = _HOURLY_RE.search(context) or (low < 200 and high < 200)
 
     if is_hourly and low >= 10 and high <= 200:
@@ -351,9 +440,11 @@ def _job_id(url: str) -> str:
 def _format_salary_html(salary_min, salary_max) -> str:
     if salary_min is None and salary_max is None:
         return ""
+
     def fmt(cents):
         d = cents / 100
-        return f"${d:,.0f}" if d < 1000 else f"${d/1000:.0f}k"
+        return f"${d:,.0f}" if d < 1000 else f"${d / 1000:.0f}k"
+
     if salary_min and salary_max:
         if salary_min == salary_max:
             return fmt(salary_min)
@@ -390,22 +481,31 @@ def _avatar_html(company_name: str, css_prefix: str = "") -> str:
         return (
             f'<div class="company-avatar" style="background:{color}">'
             f'<img src="{logo_path}" alt="" class="company-logo" '
-            f'onload="this.parentNode.style.background=\'none\'" '
-            f'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">'
+            f"onload=\"this.parentNode.style.background='none'\" "
+            f"onerror=\"this.style.display='none';this.nextElementSibling.style.display='flex'\">"
             f'<span class="avatar-fallback" style="display:none">{initial}</span>'
-            f'</div>'
+            f"</div>"
         )
     return f'<div class="company-avatar" style="background:{color}">{initial}</div>'
 
 
 def _company_color(name: str) -> str:
     h = 0
-    for c in (name or ""):
+    for c in name or "":
         h = ord(c) + ((h << 5) - h)
     colors = [
-        "#6366f1", "#8b5cf6", "#ec4899", "#f43f5e",
-        "#f97316", "#eab308", "#22c55e", "#14b8a6",
-        "#06b6d4", "#3b82f6", "#a855f7", "#e11d48",
+        "#6366f1",
+        "#8b5cf6",
+        "#ec4899",
+        "#f43f5e",
+        "#f97316",
+        "#eab308",
+        "#22c55e",
+        "#14b8a6",
+        "#06b6d4",
+        "#3b82f6",
+        "#a855f7",
+        "#e11d48",
     ]
     return colors[abs(h) % len(colors)]
 
@@ -413,6 +513,7 @@ def _company_color(name: str) -> str:
 # ---------------------------------------------------------------------------
 # Build list entry from DB row
 # ---------------------------------------------------------------------------
+
 
 def _build_list_entry(job: dict) -> dict:
     company_display = normalize_company_name(
@@ -457,12 +558,15 @@ def _build_list_entry(job: dict) -> dict:
         "first_seen_at": job.get("first_seen_at"),
     }
     # Strip None/empty values to reduce jobs.json size
-    return {k: v for k, v in entry.items() if v is not None and v != [] and v is not False}
+    return {
+        k: v for k, v in entry.items() if v is not None and v != [] and v is not False
+    }
 
 
 # ---------------------------------------------------------------------------
 # Pre-render job rows as static HTML
 # ---------------------------------------------------------------------------
+
 
 def _interleave_by_company(jobs: list[dict]) -> list[dict]:
     """Round-robin across companies so no single employer dominates the list."""
@@ -472,7 +576,9 @@ def _interleave_by_company(jobs: list[dict]) -> list[dict]:
         by_company.setdefault(key, []).append(j)
 
     # Sort groups by newest job
-    groups = sorted(by_company.values(), key=lambda g: g[0].get("posted_date") or "", reverse=True)
+    groups = sorted(
+        by_company.values(), key=lambda g: g[0].get("posted_date") or "", reverse=True
+    )
 
     result = []
     rnd = 0
@@ -487,11 +593,19 @@ def _interleave_by_company(jobs: list[dict]) -> list[dict]:
     return result
 
 
-_SHIFT_LABELS = {"days": "Days", "nights": "Nights", "evenings": "Evenings",
-                 "weekends": "Weekends", "prn": "PRN", "rotating": "Rotating"}
+_SHIFT_LABELS = {
+    "days": "Days",
+    "nights": "Nights",
+    "evenings": "Evenings",
+    "weekends": "Weekends",
+    "prn": "PRN",
+    "rotating": "Rotating",
+}
 
 
-def _render_job_rows_html(jobs: list[dict], limit: int = 25, css_prefix: str = "") -> str:
+def _render_job_rows_html(
+    jobs: list[dict], limit: int = 25, css_prefix: str = ""
+) -> str:
     """Render job list rows as static HTML for SEO."""
     rows = []
     for job in jobs[:limit]:
@@ -511,7 +625,7 @@ def _render_job_rows_html(jobs: list[dict], limit: int = 25, css_prefix: str = "
             bonus_badge = f' <span class="bonus-badge">${bonus_dollars:,} Bonus</span>'
 
         avatar = _avatar_html(job["company_name"], css_prefix)
-        rows.append(f'''<a class="job-row" href="/listing/{job["slug"]}/">
+        rows.append(f"""<a class="job-row" href="/listing/{job["slug"]}/">
   {avatar}
   <div class="job-info">
     <div class="job-title">{escape(job["title"])}{bonus_badge}</div>
@@ -521,7 +635,7 @@ def _render_job_rows_html(jobs: list[dict], limit: int = 25, css_prefix: str = "
     <div class="job-location">{escape(job.get("location") or "")}</div>
     <div class="job-time">{time_str}</div>
   </div>
-</a>''')
+</a>""")
     return "\n".join(rows)
 
 
@@ -529,8 +643,16 @@ def _render_job_rows_html(jobs: list[dict], limit: int = 25, css_prefix: str = "
 # Page templates
 # ---------------------------------------------------------------------------
 
-def _page_shell(title: str, meta_desc: str, canonical: str, css_path: str,
-                js_path: str, data_path: str, body: str) -> str:
+
+def _page_shell(
+    title: str,
+    meta_desc: str,
+    canonical: str,
+    css_path: str,
+    js_path: str,
+    data_path: str,
+    body: str,
+) -> str:
     return f'''<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -643,7 +765,9 @@ def _build_job_jsonld(job: dict, desc_html: str, salary_display: str) -> str:
 
     posted = job.get("posted_date") or job.get("first_seen_at") or ""
     # Normalize to YYYY-MM-DD
-    date_posted = posted[:10] if posted else datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    date_posted = (
+        posted[:10] if posted else datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    )
 
     ld = {
         "@context": "https://schema.org/",
@@ -662,7 +786,10 @@ def _build_job_jsonld(job: dict, desc_html: str, salary_display: str) -> str:
 
     # Location
     location = job.get("location") or ""
-    if any(kw in location.lower() for kw in ["remote", "virtual", "telehealth", "work from home"]):
+    if any(
+        kw in location.lower()
+        for kw in ["remote", "virtual", "telehealth", "work from home"]
+    ):
         ld["jobLocationType"] = "TELECOMMUTE"
     elif location:
         loc_obj = {"@type": "Place", "address": {"@type": "PostalAddress"}}
@@ -705,12 +832,15 @@ def _build_job_jsonld(job: dict, desc_html: str, salary_display: str) -> str:
     # posted_date instead would mark still-live postings as expired once they
     # pass 30 days old.
     from datetime import timedelta as td
+
     ld["validThrough"] = (datetime.now(timezone.utc) + td(days=30)).strftime("%Y-%m-%d")
 
     return f'<script type="application/ld+json">{json.dumps(ld, separators=(",", ":"))}</script>'
 
 
-def _job_detail_html(job: dict, desc_html: str, css_path: str, logo_prefix: str = "") -> str:
+def _job_detail_html(
+    job: dict, desc_html: str, css_path: str, logo_prefix: str = ""
+) -> str:
     salary = _format_salary_html(job.get("salary_min"), job.get("salary_max"))
     posted = job.get("posted_date") or job.get("first_seen_at") or ""
     meta_parts = [
@@ -738,8 +868,8 @@ def _job_detail_html(job: dict, desc_html: str, css_path: str, logo_prefix: str 
         meta_desc += f". {salary}"
     meta_desc += ". Apply now on ScrubShifts."
 
-    job_title_full = f'{escape(job["title"])} at {escape(job["company_name"])}'
-    job_canonical = f'{SITE_URL}/jobs/{job["slug"]}/'
+    job_title_full = f"{escape(job['title'])} at {escape(job['company_name'])}"
+    job_canonical = f"{SITE_URL}/jobs/{job['slug']}/"
 
     return f'''<!DOCTYPE html>
 <html lang="en">
@@ -794,7 +924,7 @@ def _job_detail_html(job: dict, desc_html: str, css_path: str, logo_prefix: str 
             <dd>{escape(job["company_name"])}</dd>
             <dt>Posted</dt>
             <dd>{posted[:10] if posted else ""}</dd>
-            {f'<dt>Location</dt><dd>{escape(job["location"])}</dd>' if job.get("location") else ""}
+            {f"<dt>Location</dt><dd>{escape(job["location"])}</dd>" if job.get("location") else ""}
           </dl>
         </div>
       </div>
@@ -804,10 +934,18 @@ def _job_detail_html(job: dict, desc_html: str, css_path: str, logo_prefix: str 
 </html>'''
 
 
-def _category_page_html(heading: str, description: str, meta_desc: str,
-                        canonical: str, css_path: str, js_path: str,
-                        data_path: str, jobs: list[dict],
-                        category_filter_json: str, extra_seo: str = "") -> str:
+def _category_page_html(
+    heading: str,
+    description: str,
+    meta_desc: str,
+    canonical: str,
+    css_path: str,
+    js_path: str,
+    data_path: str,
+    jobs: list[dict],
+    category_filter_json: str,
+    extra_seo: str = "",
+) -> str:
     count = len(jobs)
     # Derive logo prefix from css_path (e.g., "../../css/style.css" -> "../../")
     logo_prefix = css_path.rsplit("css/", 1)[0] if "css/" in css_path else ""
@@ -821,7 +959,7 @@ def _category_page_html(heading: str, description: str, meta_desc: str,
         css_path=css_path,
         js_path=js_path,
         data_path=data_path,
-        body=f'''    <div class="category-hero">
+        body=f"""    <div class="category-hero">
       <h1>{escape(heading)}</h1>
       <p class="category-desc">{escape(description)}</p>
     </div>
@@ -863,13 +1001,14 @@ def _category_page_html(heading: str, description: str, meta_desc: str,
       {extra_seo}
     </section>
 
-    <script>window.__CATEGORY_FILTER = {category_filter_json};</script>''',
+    <script>window.__CATEGORY_FILTER = {category_filter_json};</script>""",
     )
 
 
 # ---------------------------------------------------------------------------
 # Main export
 # ---------------------------------------------------------------------------
+
 
 def _build_related_links_html(label: str, links: list[tuple[str, str, int]]) -> str:
     """Build a related links section. links = [(url, display_name, count), ...]"""
@@ -918,6 +1057,7 @@ def _generate_geo_data(list_jobs: list[dict]):
     if need_download:
         try:
             import requests
+
             logger.info("Downloading zip code data...")
             r = requests.get(
                 "https://raw.githubusercontent.com/midwire/free_zipcode_data/master/all_us_zipcodes.csv",
@@ -948,11 +1088,18 @@ def _generate_geo_data(list_jobs: list[dict]):
             # Save ALL city averages (not filtered) so we can rebuild cities.json each run
             all_city_avg = {}
             for key, (lats, lngs) in city_coords.items():
-                all_city_avg[key] = [round(sum(lats) / len(lats), 4), round(sum(lngs) / len(lngs), 4)]
+                all_city_avg[key] = [
+                    round(sum(lats) / len(lats), 4),
+                    round(sum(lngs) / len(lngs), 4),
+                ]
             with open(all_cities_path, "w") as f:
                 json.dump(all_city_avg, f, separators=(",", ":"))
 
-            logger.info("Downloaded geo data: %d zips, %d total cities", len(zip_data), len(all_city_avg))
+            logger.info(
+                "Downloaded geo data: %d zips, %d total cities",
+                len(zip_data),
+                len(all_city_avg),
+            )
         except Exception as e:
             logger.warning("Failed to download zip data: %s", e)
             return
@@ -964,14 +1111,21 @@ def _generate_geo_data(list_jobs: list[dict]):
         filtered_cities = {k: v for k, v in all_city_avg.items() if k in job_cities}
         with open(cities_path, "w") as f:
             json.dump(filtered_cities, f, separators=(",", ":"))
-        logger.info("Updated cities.json: %d cities (of %d in jobs)", len(filtered_cities), len(job_cities))
+        logger.info(
+            "Updated cities.json: %d cities (of %d in jobs)",
+            len(filtered_cities),
+            len(job_cities),
+        )
     except Exception as e:
         logger.warning("Failed to update cities.json: %s", e)
 
 
-def _download_one_logo(tenant: str, wd_num: str, site_id: str, company_slug: str) -> bool:
+def _download_one_logo(
+    tenant: str, wd_num: str, site_id: str, company_slug: str
+) -> bool:
     """Download a single company logo from Workday. Returns True if saved."""
     import requests as req
+
     dest = os.path.join(LOGOS_DIR, f"{company_slug}.png")
     if os.path.exists(dest):
         return True
@@ -982,12 +1136,22 @@ def _download_one_logo(tenant: str, wd_num: str, site_id: str, company_slug: str
             return False
         # Verify it looks like an image (PNG, SVG, JPEG, GIF, WEBP)
         hdr = resp.content[:16]
-        if not (hdr[:4] == b'\x89PNG' or hdr[:4] == b'<svg' or hdr[:6] == b'<?xml '
-                or b'<svg' in hdr or hdr[:2] == b'\xff\xd8' or hdr[:4] == b'GIF8'
-                or hdr[:4] == b'RIFF'):
+        if not (
+            hdr[:4] == b"\x89PNG"
+            or hdr[:4] == b"<svg"
+            or hdr[:6] == b"<?xml "
+            or b"<svg" in hdr
+            or hdr[:2] == b"\xff\xd8"
+            or hdr[:4] == b"GIF8"
+            or hdr[:4] == b"RIFF"
+        ):
             return False
         # Save as-is (browser handles PNG/SVG/JPEG fine)
-        ext = "svg" if (hdr[:4] == b'<svg' or hdr[:6] == b'<?xml ' or b'<svg' in hdr) else "png"
+        ext = (
+            "svg"
+            if (hdr[:4] == b"<svg" or hdr[:6] == b"<?xml " or b"<svg" in hdr)
+            else "png"
+        )
         dest = os.path.join(LOGOS_DIR, f"{company_slug}.{ext}")
         with open(dest, "wb") as f:
             f.write(resp.content)
@@ -1029,7 +1193,11 @@ def _download_logos(jobs: list[dict]):
         _write_logo_index()
         return
 
-    logger.info("Downloading logos for %d companies (%d cached)", len(to_download), len(existing))
+    logger.info(
+        "Downloading logos for %d companies (%d cached)",
+        len(to_download),
+        len(existing),
+    )
     downloaded = 0
 
     with ThreadPoolExecutor(max_workers=10) as executor:
@@ -1041,7 +1209,9 @@ def _download_logos(jobs: list[dict]):
             if future.result():
                 downloaded += 1
 
-    logger.info("Downloaded %d new logos (%d failed)", downloaded, len(to_download) - downloaded)
+    logger.info(
+        "Downloaded %d new logos (%d failed)", downloaded, len(to_download) - downloaded
+    )
 
     # Populate cache
     for fname in os.listdir(LOGOS_DIR):
@@ -1079,6 +1249,7 @@ MAX_JOBS_JSON_BYTES = 22 * 1024 * 1024
 
 def _cap_jobs_json(entries: list[dict]) -> list[dict]:
     """Return the newest prefix of entries whose JSON fits MAX_JOBS_JSON_BYTES."""
+
     def size(items: list[dict]) -> int:
         return len(json.dumps(items, separators=(",", ":")).encode("utf-8"))
 
@@ -1093,7 +1264,9 @@ def _cap_jobs_json(entries: list[dict]) -> list[dict]:
     logger.warning(
         "jobs.json exceeds %d MiB at %d jobs; capping homepage search dataset "
         "to %d newest jobs (full set still covered by SEO pages + sitemap)",
-        MAX_JOBS_JSON_BYTES // (1024 * 1024), len(entries), keep,
+        MAX_JOBS_JSON_BYTES // (1024 * 1024),
+        len(entries),
+        keep,
     )
     return entries[:keep]
 
@@ -1117,7 +1290,13 @@ def export_for_frontend(jobs: list[dict], stats: dict):
         list_jobs.append(entry)
         if job.get("description_html") or job.get("description_plain"):
             # Pass url separately for detail pages (stripped from list entries to save space)
-            detail_jobs.append((entry, job.get("description_html") or job.get("description_plain"), job["url"]))
+            detail_jobs.append(
+                (
+                    entry,
+                    job.get("description_html") or job.get("description_plain"),
+                    job["url"],
+                )
+            )
 
     if skipped_non_us:
         logger.info("Skipped %d non-US jobs from export", skipped_non_us)
@@ -1180,7 +1359,12 @@ def _generate_job_detail_pages(detail_jobs: list[tuple[dict, str, str]]):
         salary = _format_salary_html(entry.get("salary_min"), entry.get("salary_max"))
         jsonld = _build_job_jsonld(entry, desc_html, salary)
 
-        detail = {**entry, "url": job_url, "description_html": desc_html, "jsonld": jsonld}
+        detail = {
+            **entry,
+            "url": job_url,
+            "description_html": desc_html,
+            "jsonld": jsonld,
+        }
         if prefix not in chunks:
             chunks[prefix] = {}
         chunks[prefix][jid] = detail
@@ -1242,7 +1426,9 @@ def _generate_all_category_pages(list_jobs: list[dict]):
             if cnt >= MIN_JOBS_FOR_PAGE:
                 state_name = STATE_NAMES.get(abbr, abbr)
                 state_sl = STATE_SLUGS.get(abbr, abbr.lower())
-                role_state_links.append((f"/jobs/{slug}/{state_sl}/", f"{display} in {state_name}", cnt))
+                role_state_links.append(
+                    (f"/jobs/{slug}/{state_sl}/", f"{display} in {state_name}", cnt)
+                )
         role_state_links.sort(key=lambda x: -x[2])
 
         # Related roles
@@ -1252,7 +1438,9 @@ def _generate_all_category_pages(list_jobs: list[dict]):
             if s != slug and sum(1 for j in list_jobs if m(j)) >= MIN_JOBS_FOR_PAGE
         ][:10]
 
-        seo_extra = _build_related_links_html(f"{display} Jobs by State", role_state_links[:15])
+        seo_extra = _build_related_links_html(
+            f"{display} Jobs by State", role_state_links[:15]
+        )
         seo_extra += _build_related_links_html("Related Roles", related_roles)
 
         page_dir = os.path.join(FRONTEND_DIR, "jobs", slug)
@@ -1331,7 +1519,9 @@ def _generate_all_category_pages(list_jobs: list[dict]):
         state_role_links.sort(key=lambda x: -x[2])
 
         state_seo = f"<p>We track nursing and allied health positions in {state_name} from {companies} healthcare employers. Roles include RN, LPN, CNA, PT, OT, SLP, and more.</p>"
-        state_seo += _build_related_links_html(f"Roles in {state_name}", state_role_links[:12])
+        state_seo += _build_related_links_html(
+            f"Roles in {state_name}", state_role_links[:12]
+        )
 
         html = _category_page_html(
             heading=heading,
@@ -1373,7 +1563,9 @@ def _generate_all_category_pages(list_jobs: list[dict]):
         metro_role_links.sort(key=lambda x: -x[2])
 
         metro_seo = f"<p>We track nursing and allied health positions in the {metro_name} metro area from {companies} healthcare employers.</p>"
-        metro_seo += _build_related_links_html(f"Roles in {metro_name}", metro_role_links[:12])
+        metro_seo += _build_related_links_html(
+            f"Roles in {metro_name}", metro_role_links[:12]
+        )
 
         page_dir = os.path.join(FRONTEND_DIR, "jobs", "metro", metro_slug)
         os.makedirs(page_dir, exist_ok=True)
@@ -1410,16 +1602,25 @@ def _generate_all_category_pages(list_jobs: list[dict]):
             continue
 
         company_name = company_jobs[0]["company_name"]
-        states_with_jobs = sorted(set(j.get("state") for j in company_jobs if j.get("state")))
+        states_with_jobs = sorted(
+            set(j.get("state") for j in company_jobs if j.get("state"))
+        )
 
         # Related: other top companies
         related_companies = sorted(
-            [(cs, cj) for cs, cj in by_company.items() if cs != company_slug and len(cj) >= MIN_JOBS_FOR_PAGE],
+            [
+                (cs, cj)
+                for cs, cj in by_company.items()
+                if cs != company_slug and len(cj) >= MIN_JOBS_FOR_PAGE
+            ],
             key=lambda x: -len(x[1]),
         )[:12]
         related_html = _build_related_links_html(
             "More Healthcare Employers",
-            [(f"/jobs/at/{cs}/", cj[0]["company_name"], len(cj)) for cs, cj in related_companies],
+            [
+                (f"/jobs/at/{cs}/", cj[0]["company_name"], len(cj))
+                for cs, cj in related_companies
+            ],
         )
 
         page_dir = os.path.join(FRONTEND_DIR, "jobs", "at", company_slug)
@@ -1475,7 +1676,11 @@ def _generate_homepage(list_jobs: list[dict]):
         if st:
             by_state[st] = by_state.get(st, 0) + 1
     state_links = sorted(
-        [(f"/jobs/{STATE_SLUGS[abbr]}/", STATE_NAMES[abbr], cnt) for abbr, cnt in by_state.items() if cnt >= MIN_JOBS_FOR_PAGE],
+        [
+            (f"/jobs/{STATE_SLUGS[abbr]}/", STATE_NAMES[abbr], cnt)
+            for abbr, cnt in by_state.items()
+            if cnt >= MIN_JOBS_FOR_PAGE
+        ],
         key=lambda x: -x[2],
     )
 
@@ -1489,7 +1694,11 @@ def _generate_homepage(list_jobs: list[dict]):
                 by_company[cs] = (j["company_name"], 0)
             by_company[cs] = (by_company[cs][0], by_company[cs][1] + 1)
     company_links = sorted(
-        [(f"/jobs/at/{cs}/", name, cnt) for cs, (name, cnt) in by_company.items() if cnt >= MIN_JOBS_FOR_PAGE],
+        [
+            (f"/jobs/at/{cs}/", name, cnt)
+            for cs, (name, cnt) in by_company.items()
+            if cnt >= MIN_JOBS_FOR_PAGE
+        ],
         key=lambda x: -x[2],
     )[:24]
 
@@ -1500,11 +1709,17 @@ def _generate_homepage(list_jobs: list[dict]):
         if m:
             by_metro_hp[m] = by_metro_hp.get(m, 0) + 1
     metro_links = sorted(
-        [(f"/jobs/metro/{slug}/", get_metro_name(slug), cnt) for slug, cnt in by_metro_hp.items() if cnt >= MIN_JOBS_FOR_PAGE],
+        [
+            (f"/jobs/metro/{slug}/", get_metro_name(slug), cnt)
+            for slug, cnt in by_metro_hp.items()
+            if cnt >= MIN_JOBS_FOR_PAGE
+        ],
         key=lambda x: -x[2],
     )[:20]
 
-    pre_rendered = _render_job_rows_html(_interleave_by_company(list_jobs), css_prefix="")
+    pre_rendered = _render_job_rows_html(
+        _interleave_by_company(list_jobs), css_prefix=""
+    )
     hub_roles = _build_hub_section_html("Browse by Role", role_links)
     hub_metros = _build_hub_section_html("Browse by Metro Area", metro_links)
     hub_states = _build_hub_section_html("Browse by State", state_links[:20])
@@ -1516,7 +1731,7 @@ def _generate_homepage(list_jobs: list[dict]):
         css_path="css/style.css",
         js_path="js",
         data_path="data",
-        body=f'''    <section class="hero">
+        body=f"""    <section class="hero">
       <p class="hero-eyebrow">Updated daily.</p>
       <div class="hero-content">
         <h1>Healthcare jobs.<br>Direct from the employer.</h1>
@@ -1599,7 +1814,7 @@ def _generate_homepage(list_jobs: list[dict]):
     {hub_roles}
     {hub_metros}
     {hub_states}
-    {hub_companies}''',
+    {hub_companies}""",
     )
 
     with open(os.path.join(FRONTEND_DIR, "index.html"), "w") as f:
@@ -1628,13 +1843,17 @@ def _generate_sitemap(list_jobs: list[dict]):
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
     # Build category page URLs
-    category_urls = [f'  <url><loc>{SITE_URL}/</loc><lastmod>{now}</lastmod><changefreq>daily</changefreq><priority>1.0</priority></url>']
+    category_urls = [
+        f"  <url><loc>{SITE_URL}/</loc><lastmod>{now}</lastmod><changefreq>daily</changefreq><priority>1.0</priority></url>"
+    ]
     jobs_dir = os.path.join(FRONTEND_DIR, "jobs")
     if os.path.isdir(jobs_dir):
         for root, dirs, files in os.walk(jobs_dir):
             if "index.html" in files:
                 rel = os.path.relpath(root, FRONTEND_DIR)
-                category_urls.append(f'  <url><loc>{SITE_URL}/{rel}/</loc><lastmod>{now}</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>')
+                category_urls.append(
+                    f"  <url><loc>{SITE_URL}/{rel}/</loc><lastmod>{now}</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>"
+                )
 
     # Build job detail page URLs
     job_urls = []
@@ -1643,7 +1862,9 @@ def _generate_sitemap(list_jobs: list[dict]):
         if not slug:
             continue
         lastmod = (job.get("posted_date") or job.get("first_seen_at") or now)[:10]
-        job_urls.append(f'  <url><loc>{SITE_URL}/listing/{slug}/</loc><lastmod>{lastmod}</lastmod><changefreq>weekly</changefreq><priority>0.5</priority></url>')
+        job_urls.append(
+            f"  <url><loc>{SITE_URL}/listing/{slug}/</loc><lastmod>{lastmod}</lastmod><changefreq>weekly</changefreq><priority>0.5</priority></url>"
+        )
 
     # Write sitemap files — split job URLs into chunks if needed
     sitemap_files = []
@@ -1654,7 +1875,7 @@ def _generate_sitemap(list_jobs: list[dict]):
 
     # Sitemap 2+: job detail pages, chunked
     for i in range(0, len(job_urls), MAX_URLS_PER_SITEMAP):
-        chunk = job_urls[i:i + MAX_URLS_PER_SITEMAP]
+        chunk = job_urls[i : i + MAX_URLS_PER_SITEMAP]
         chunk_num = i // MAX_URLS_PER_SITEMAP + 1
         filename = f"sitemap-jobs-{chunk_num}.xml"
         _write_sitemap_file(os.path.join(FRONTEND_DIR, filename), chunk)
@@ -1682,5 +1903,10 @@ def _generate_sitemap(list_jobs: list[dict]):
         f.write(f"User-agent: *\nAllow: /\n\nSitemap: {SITE_URL}/sitemap.xml\n")
 
     total = len(category_urls) + len(job_urls)
-    logger.info("Generated sitemap index with %d sitemaps (%d category + %d job detail = %d URLs)",
-                len(sitemap_files), len(category_urls), len(job_urls), total)
+    logger.info(
+        "Generated sitemap index with %d sitemaps (%d category + %d job detail = %d URLs)",
+        len(sitemap_files),
+        len(category_urls),
+        len(job_urls),
+        total,
+    )
