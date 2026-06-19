@@ -1350,6 +1350,51 @@ def export_for_frontend(jobs: list[dict], stats: dict):
     _generate_sitemap(list_jobs)
 
 
+def _build_similar_index(detail_jobs: list[tuple[dict, str, str]]) -> dict:
+    """Map each job id -> up to 6 related jobs (same company first, then same
+    state). These power the "Similar jobs" block the worker SSRs into each
+    listing — unique, page-specific content + internal links that the verbatim
+    ATS description (which Google already indexed at the source) lacks.
+
+    Candidates are drawn only from detail_jobs, so every link targets a live
+    /listing/ page (no 404/410). Refs are kept tiny to limit chunk JSON size.
+    """
+    by_company: dict[str, list] = {}
+    by_state: dict[str, list] = {}
+    for entry, _, _ in detail_jobs:
+        by_company.setdefault(entry.get("company_slug"), []).append(entry)
+        if entry.get("state"):
+            by_state.setdefault(entry["state"], []).append(entry)
+
+    def ref(e):
+        return {
+            "slug": e["slug"],
+            "title": e["title"],
+            "company_name": e.get("company_name", ""),
+            "location": e.get("location", ""),
+        }
+
+    index: dict[str, list] = {}
+    for entry, _, _ in detail_jobs:
+        jid = entry["id"]
+        seen = {jid}
+        picks = []
+        for pool in (
+            by_company.get(entry.get("company_slug"), []),
+            by_state.get(entry.get("state"), []),
+        ):
+            for cand in pool:
+                if len(picks) >= 6:
+                    break
+                if cand["id"] in seen:
+                    continue
+                seen.add(cand["id"])
+                picks.append(ref(cand))
+        if picks:
+            index[jid] = picks
+    return index
+
+
 def _generate_job_detail_pages(detail_jobs: list[tuple[dict, str, str]]):
     """Generate chunked JSON detail files keyed by 2-char hex prefix.
 
@@ -1363,6 +1408,7 @@ def _generate_job_detail_pages(detail_jobs: list[tuple[dict, str, str]]):
     os.makedirs(DETAIL_DIR, exist_ok=True)
     count = 0
     chunks: dict[str, dict] = {}
+    similar_index = _build_similar_index(detail_jobs)
 
     for entry, desc_html, job_url in detail_jobs:
         jid = entry["id"]
@@ -1377,6 +1423,9 @@ def _generate_job_detail_pages(detail_jobs: list[tuple[dict, str, str]]):
             "description_html": desc_html,
             "jsonld": jsonld,
         }
+        similar = similar_index.get(jid)
+        if similar:
+            detail["similar"] = similar
         if prefix not in chunks:
             chunks[prefix] = {}
         chunks[prefix][jid] = detail

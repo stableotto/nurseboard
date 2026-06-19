@@ -97,6 +97,46 @@ const MONTHS = [
   "Dec",
 ];
 
+const SHIFT_LABELS = {
+  nights: "night shift",
+  days: "day shift",
+  evenings: "evening shift",
+  rotating: "rotating shift",
+  prn: "PRN / per diem",
+};
+
+// Unique, page-specific lead paragraph built from structured fields. The job
+// description is verbatim ATS copy Google already indexed at the source; this
+// gives each listing original text so it isn't a pure duplicate.
+function buildIntro(job) {
+  const company = job.company_name || job.company_slug || "this employer";
+  const salary = formatSalary(job.salary_min, job.salary_max);
+  let s = `${job.title} is an open position at ${company}`;
+  if (job.location) s += ` in ${job.location}`;
+  s += ".";
+  if (salary) s += ` The posted pay is ${salary}.`;
+  if (job.shift && SHIFT_LABELS[job.shift]) {
+    s += ` This is a ${SHIFT_LABELS[job.shift]} role.`;
+  }
+  s += " Apply directly through the employer below, or browse similar roles.";
+  return `<p class="detail-intro">${escapeHtml(s)}</p>`;
+}
+
+// "Similar jobs" internal links (precomputed in pipeline/export.py
+// _build_similar_index). Unique per page and points only at live listings.
+function buildSimilar(job) {
+  const items = job.similar || [];
+  if (!items.length) return "";
+  const lis = items
+    .map((s) => {
+      const where = s.location ? ` — ${escapeHtml(s.location)}` : "";
+      const co = s.company_name ? ` at ${escapeHtml(s.company_name)}` : "";
+      return `<li><a href="/listing/${escapeAttr(s.slug)}/">${escapeHtml(s.title)}</a>${co}${where}</li>`;
+    })
+    .join("");
+  return `<section class="similar-jobs"><h2>Similar jobs</h2><ul class="similar-list">${lis}</ul></section>`;
+}
+
 // Manual format (avoids Workers ICU dependence). Mirrors frontend/js/time.js formatDate().
 function formatDate(dateStr) {
   if (!dateStr) return "";
@@ -158,7 +198,9 @@ function buildBody(job) {
         <h1 class="detail-title">${escapeHtml(job.title)}</h1>
         <div class="detail-meta">${metaParts.join('<span style="color:var(--border)">|</span>')}</div>
         ${deptTags ? `<div class="dept-tags">${deptTags}</div>` : ""}
+        ${buildIntro(job)}
         <div class="description">${descHtml}</div>
+        ${buildSimilar(job)}
       </div>
       <div class="detail-sidebar">
         <div class="sidebar-card">

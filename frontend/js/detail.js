@@ -36,7 +36,8 @@ export async function renderDetail(container) {
   } catch {}
 
   if (!job) {
-    container.innerHTML = '<div class="empty-state">Job not found. <a href="/">Back to jobs</a></div>';
+    container.innerHTML =
+      '<div class="empty-state">Job not found. <a href="/">Back to jobs</a></div>';
     return;
   }
 
@@ -44,7 +45,9 @@ export async function renderDetail(container) {
 
   // Inject JSON-LD if present
   if (job.jsonld) {
-    const existing = document.querySelector('script[type="application/ld+json"]');
+    const existing = document.querySelector(
+      'script[type="application/ld+json"]',
+    );
     if (!existing) {
       document.head.insertAdjacentHTML("beforeend", job.jsonld);
     }
@@ -52,12 +55,61 @@ export async function renderDetail(container) {
 }
 
 function slugify(text) {
-  return (text || "unknown").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80);
+  return (text || "unknown")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 80);
+}
+
+const SHIFT_LABELS = {
+  nights: "night shift",
+  days: "day shift",
+  evenings: "evening shift",
+  rotating: "rotating shift",
+  prn: "PRN / per diem",
+};
+
+// Mirrors buildIntro() in frontend/_worker.js — keep in sync.
+function buildIntro(job) {
+  const company = job.company_name || job.company_slug || "this employer";
+  const salary = formatSalary(
+    job.salary_min,
+    job.salary_max,
+    job.salary_currency,
+  );
+  let s = `${job.title} is an open position at ${company}`;
+  if (job.location) s += ` in ${job.location}`;
+  s += ".";
+  if (salary) s += ` The posted pay is ${salary}.`;
+  if (job.shift && SHIFT_LABELS[job.shift]) {
+    s += ` This is a ${SHIFT_LABELS[job.shift]} role.`;
+  }
+  s += " Apply directly through the employer below, or browse similar roles.";
+  return `<p class="detail-intro">${escapeHtml(s)}</p>`;
+}
+
+// Mirrors buildSimilar() in frontend/_worker.js — keep in sync.
+function buildSimilar(job) {
+  const items = job.similar || [];
+  if (!items.length) return "";
+  const lis = items
+    .map((s) => {
+      const where = s.location ? ` — ${escapeHtml(s.location)}` : "";
+      const co = s.company_name ? ` at ${escapeHtml(s.company_name)}` : "";
+      return `<li><a href="/listing/${escapeAttr(s.slug)}/">${escapeHtml(s.title)}</a>${co}${where}</li>`;
+    })
+    .join("");
+  return `<section class="similar-jobs"><h2>Similar jobs</h2><ul class="similar-list">${lis}</ul></section>`;
 }
 
 function renderJobDetail(job, container) {
   const color = companyColor(job.company_name);
-  const salary = formatSalary(job.salary_min, job.salary_max, job.salary_currency);
+  const salary = formatSalary(
+    job.salary_min,
+    job.salary_max,
+    job.salary_currency,
+  );
   const posted = formatDate(job.posted_date || job.first_seen_at);
   const hasDescription = job.description_html || job.description_plain;
 
@@ -98,7 +150,9 @@ function renderJobDetail(job, container) {
         <h1 class="detail-title">${escapeHtml(job.title)}</h1>
         <div class="detail-meta">${metaParts.join('<span style="color:var(--border)">|</span>')}</div>
         ${deptTags ? `<div class="dept-tags">${deptTags}</div>` : ""}
+        ${buildIntro(job)}
         <div class="description">${descHtml}</div>
+        ${buildSimilar(job)}
       </div>
 
       <div class="detail-sidebar">
@@ -120,7 +174,9 @@ function renderJobDetail(job, container) {
 function sanitizeHtml(html) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, "text/html");
-  doc.querySelectorAll("script, style, iframe, object, embed").forEach((el) => el.remove());
+  doc
+    .querySelectorAll("script, style, iframe, object, embed")
+    .forEach((el) => el.remove());
   return doc.body.innerHTML;
 }
 
