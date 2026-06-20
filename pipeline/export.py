@@ -1348,6 +1348,19 @@ def export_for_frontend(jobs: list[dict], stats: dict):
     if skipped_non_us:
         logger.info("Skipped %d non-US jobs from export", skipped_non_us)
 
+    # Only jobs with an enriched description get a /listing/ detail page; the
+    # rest 410. Everything the frontend links to (jobs.json search, category
+    # rows, homepage, sitemap) must use this set, or we publish internal links
+    # to pages that 410. Unenriched jobs reappear automatically once enriched.
+    page_jobs = [entry for entry, _, _ in detail_jobs]
+    logger.info(
+        "%d of %d jobs are linkable (have detail pages); hiding %d unenriched",
+        len(page_jobs),
+        len(list_jobs),
+        len(list_jobs) - len(page_jobs),
+    )
+    list_jobs = page_jobs
+
     # Write jobs.json for JS interactivity. Cloudflare Pages rejects any single
     # file over 25 MiB, and exporting every live job can exceed that. Cap to the
     # newest jobs that fit a safe budget — SEO is unaffected because indexing is
@@ -1381,10 +1394,8 @@ def export_for_frontend(jobs: list[dict], stats: dict):
     # Generate homepage
     _generate_homepage(list_jobs)
 
-    # Generate sitemap. Only jobs that actually have a detail page (i.e. an
-    # enriched description, so they live in a /data/jobs chunk) get a /listing/
-    # URL — anything else 410s, so feed the sitemap the detail set, not all jobs.
-    _generate_sitemap([entry for entry, _, _ in detail_jobs])
+    # Generate sitemap (list_jobs is the detail-page set; see above).
+    _generate_sitemap(list_jobs)
 
 
 def _build_similar_index(detail_jobs: list[tuple[dict, str, str]]) -> dict:
@@ -1475,8 +1486,54 @@ def _generate_job_detail_pages(detail_jobs: list[tuple[dict, str, str]]):
     logger.info("Generated %d job details in %d chunk files", count, len(chunks))
 
 
+def _category_enrichment_html(jobs: list[dict]) -> str:
+    """Unique, page-specific content for a category page: salary insight + the
+    top employers hiring. Gives the page real substance beyond a bare list of
+    outbound links, which is what lets it compete in search."""
+    parts = []
+
+    sal_min = sorted(j["salary_min"] for j in jobs if j.get("salary_min"))
+    if len(sal_min) >= 3:
+        lo = sal_min[0]
+        med = sal_min[len(sal_min) // 2]
+        hi = max(
+            (j.get("salary_max") or j["salary_min"])
+            for j in jobs
+            if j.get("salary_min")
+        )
+        parts.append(
+            f"<p>Posted pay for these roles ranges from {_format_salary_html(lo, lo)} "
+            f"to {_format_salary_html(hi, hi)}, with a median near "
+            f"{_format_salary_html(med, med)} ({len(sal_min)} of the listings "
+            f"include salary).</p>"
+        )
+
+    # Top employers — link only to company pages that exist (total >= threshold,
+    # which is implied when the in-category count already meets it). Derive the
+    # company slug from the job slug exactly as the company pages are keyed
+    # (slug = at/{company}/{title}-{hash}), not the DB company_slug field.
+    by_co: dict[str, list] = {}
+    for j in jobs:
+        nm = j.get("company_name")
+        slug_parts = j.get("slug", "").split("/")
+        cs = slug_parts[1] if len(slug_parts) >= 2 else None
+        if not nm or not cs:
+            continue
+        rec = by_co.setdefault(nm, [cs, 0])
+        rec[1] += 1
+    top = sorted(by_co.items(), key=lambda x: -x[1][1])[:6]
+    emp_links = [
+        (f"/jobs/at/{cs}/", nm, cnt)
+        for nm, (cs, cnt) in top
+        if cnt >= MIN_JOBS_FOR_PAGE
+    ]
+    parts.append(_build_related_links_html("Top Employers Hiring", emp_links))
+
+    return "".join(parts)
+
+
 def _generate_all_category_pages(list_jobs: list[dict]):
-    """Generate all pSEO pages: role, state, role×state."""
+    """Generate all pSEO pages: role, state, role×state, role×metro, metro."""
     total = 0
 
     # Pre-compile category matchers
@@ -1501,6 +1558,13 @@ def _generate_all_category_pages(list_jobs: list[dict]):
     # even if a run somehow has zero jobs for them.
     for abbr in CORE_STATE_ABBRS:
         by_state.setdefault(abbr, [])
+
+    # Group jobs by metro (used for both role×metro and metro-only pages)
+    by_metro: dict[str, list] = {}
+    for j in list_jobs:
+        m = j.get("metro")
+        if m:
+            by_metro.setdefault(m, []).append(j)
 
     # 1. Role-only pages: /jobs/{role}/
     for slug, display, regex, meta_tmpl, matcher in cat_matchers:
@@ -1529,6 +1593,20 @@ def _generate_all_category_pages(list_jobs: list[dict]):
                 )
         role_state_links.sort(key=lambda x: -x[2])
 
+        # Build metro sub-links for this role (powers /jobs/{role}/metro/{metro}/)
+        role_metro_links = []
+        for metro_slug, mjobs in by_metro.items():
+            cnt = sum(1 for j in mjobs if matcher(j))
+            if cnt >= MIN_JOBS_FOR_PAGE:
+                role_metro_links.append(
+                    (
+                        f"/jobs/{slug}/metro/{metro_slug}/",
+                        f"{display} in {get_metro_name(metro_slug)}",
+                        cnt,
+                    )
+                )
+        role_metro_links.sort(key=lambda x: -x[2])
+
         # Related roles
         related_roles = [
             (f"/jobs/{s}/", d, sum(1 for j in list_jobs if m(j)))
@@ -1539,7 +1617,11 @@ def _generate_all_category_pages(list_jobs: list[dict]):
         seo_extra = _build_related_links_html(
             f"{display} Jobs by State", role_state_links[:15]
         )
+        seo_extra += _build_related_links_html(
+            f"{display} Jobs by Metro", role_metro_links[:15]
+        )
         seo_extra += _build_related_links_html("Related Roles", related_roles)
+        seo_extra += _category_enrichment_html(matched)
 
         page_dir = os.path.join(FRONTEND_DIR, "jobs", slug)
         os.makedirs(page_dir, exist_ok=True)
@@ -1587,8 +1669,48 @@ def _generate_all_category_pages(list_jobs: list[dict]):
                 data_path="../../../data",
                 jobs=state_matched,
                 category_filter_json=json.dumps(state_filter),
-                extra_seo=f"<p>We track {display.lower()} positions in {state_name} from {len(set(j['company_name'] for j in state_matched))} healthcare employers.</p>",
+                extra_seo=(
+                    f"<p>We track {display.lower()} positions in {state_name} from "
+                    f"{len(set(j['company_name'] for j in state_matched))} healthcare employers.</p>"
+                    + _category_enrichment_html(state_matched)
+                ),
                 noindex=len(state_matched) < MIN_JOBS_FOR_INDEX,
+            )
+            with open(os.path.join(cross_dir, "index.html"), "w") as f:
+                f.write(html)
+            total += 1
+
+        # 2b. Role × Metro pages: /jobs/{role}/metro/{metro-slug}/
+        for metro_slug, mjobs in by_metro.items():
+            metro_matched = [j for j in mjobs if matcher(j)]
+            if len(metro_matched) < MIN_JOBS_FOR_PAGE:
+                continue
+
+            metro_name = get_metro_name(metro_slug)
+            metro_filter = {**cat_filter, "metro": metro_slug}
+            cross_dir = os.path.join(FRONTEND_DIR, "jobs", slug, "metro", metro_slug)
+            os.makedirs(cross_dir, exist_ok=True)
+
+            heading = f"{display} Jobs in {metro_name}"
+            meta_desc = f"Browse {len(metro_matched)} {display.lower()} jobs in the {metro_name} metro area. Updated daily with salary data and direct application links."
+
+            html = _category_page_html(
+                heading=heading,
+                description=meta_desc,
+                meta_desc=meta_desc,
+                canonical=f"{SITE_URL}/jobs/{slug}/metro/{metro_slug}/",
+                css_path="../../../../css/style.css",
+                js_path="../../../../js",
+                data_path="../../../../data",
+                jobs=metro_matched,
+                category_filter_json=json.dumps(metro_filter),
+                extra_seo=(
+                    f"<p>We track {display.lower()} positions in the {metro_name} "
+                    f"metro area from {len(set(j['company_name'] for j in metro_matched))} "
+                    f"healthcare employers.</p>"
+                    + _category_enrichment_html(metro_matched)
+                ),
+                noindex=len(metro_matched) < MIN_JOBS_FOR_INDEX,
             )
             with open(os.path.join(cross_dir, "index.html"), "w") as f:
                 f.write(html)
@@ -1623,6 +1745,7 @@ def _generate_all_category_pages(list_jobs: list[dict]):
         state_seo += _build_related_links_html(
             f"Roles in {state_name}", state_role_links[:12]
         )
+        state_seo += _category_enrichment_html(state_jobs)
 
         html = _category_page_html(
             heading=heading,
@@ -1642,13 +1765,7 @@ def _generate_all_category_pages(list_jobs: list[dict]):
             f.write(html)
         total += 1
 
-    # 4. Metro pages: /jobs/metro/{metro-slug}/
-    by_metro: dict[str, list] = {}
-    for j in list_jobs:
-        m = j.get("metro")
-        if m:
-            by_metro.setdefault(m, []).append(j)
-
+    # 4. Metro pages: /jobs/metro/{metro-slug}/ (by_metro built above)
     for metro_slug, metro_jobs in by_metro.items():
         if len(metro_jobs) < MIN_JOBS_FOR_PAGE:
             continue
@@ -1656,19 +1773,20 @@ def _generate_all_category_pages(list_jobs: list[dict]):
         metro_name = get_metro_name(metro_slug)
         companies = len(set(j["company_name"] for j in metro_jobs))
 
-        # Related: role breakdowns in this metro
+        # Related: role breakdowns in this metro -> role×metro pages
         metro_role_links = []
         for s, d, rx, _, m in cat_matchers:
             if rx:
                 cnt = sum(1 for j in metro_jobs if m(j))
                 if cnt >= MIN_JOBS_FOR_PAGE:
-                    metro_role_links.append((f"/jobs/{s}/", d, cnt))
+                    metro_role_links.append((f"/jobs/{s}/metro/{metro_slug}/", d, cnt))
         metro_role_links.sort(key=lambda x: -x[2])
 
         metro_seo = f"<p>We track nursing and allied health positions in the {metro_name} metro area from {companies} healthcare employers.</p>"
         metro_seo += _build_related_links_html(
             f"Roles in {metro_name}", metro_role_links[:12]
         )
+        metro_seo += _category_enrichment_html(metro_jobs)
 
         page_dir = os.path.join(FRONTEND_DIR, "jobs", "metro", metro_slug)
         os.makedirs(page_dir, exist_ok=True)
