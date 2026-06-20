@@ -768,6 +768,24 @@ def _page_shell(
 </html>'''
 
 
+def _detect_employment_type(title: str | None, shift: str | None) -> str:
+    """Map a job to a Google-for-Jobs employmentType. Defaults to FULL_TIME,
+    which is correct for the large majority of staff healthcare roles; explicit
+    PRN/part-time/travel/contract/intern signals override it."""
+    t = (title or "").lower()
+    if shift == "prn" or "per diem" in t or "per-diem" in t or re.search(r"\bprn\b", t):
+        return "PER_DIEM"
+    if "part-time" in t or "part time" in t:
+        return "PART_TIME"
+    if "travel" in t:
+        return "TEMPORARY"
+    if "contract" in t:
+        return "CONTRACTOR"
+    if re.search(r"\bintern(ship)?\b", t):
+        return "INTERN"
+    return "FULL_TIME"
+
+
 def _build_job_jsonld(job: dict, desc_html: str, salary_display: str) -> str:
     """Build JSON-LD JobPosting structured data for Google rich results."""
     plain = re.sub(r"<[^>]+>", " ", desc_html or "")
@@ -785,6 +803,12 @@ def _build_job_jsonld(job: dict, desc_html: str, salary_display: str) -> str:
         "title": job["title"],
         "description": plain,
         "datePosted": date_posted,
+        "employmentType": _detect_employment_type(job.get("title"), job.get("shift")),
+        "identifier": {
+            "@type": "PropertyValue",
+            "name": job["company_name"],
+            "value": job.get("id", ""),
+        },
         "hiringOrganization": {
             "@type": "Organization",
             "name": job["company_name"],
@@ -800,7 +824,11 @@ def _build_job_jsonld(job: dict, desc_html: str, salary_display: str) -> str:
         kw in location.lower()
         for kw in ["remote", "virtual", "telehealth", "work from home"]
     ):
+        # Google requires applicantLocationRequirements whenever jobLocationType
+        # is TELECOMMUTE; without it the posting is invalid and excluded from
+        # Google for Jobs. All exported jobs are US/remote-US (see _is_us_or_remote).
         ld["jobLocationType"] = "TELECOMMUTE"
+        ld["applicantLocationRequirements"] = {"@type": "Country", "name": "USA"}
     elif location:
         loc_obj = {"@type": "Place", "address": {"@type": "PostalAddress"}}
         state = job.get("state")
@@ -809,6 +837,13 @@ def _build_job_jsonld(job: dict, desc_html: str, salary_display: str) -> str:
             loc_obj["address"]["addressCountry"] = "US"
         loc_obj["address"]["streetAddress"] = location
         ld["jobLocation"] = loc_obj
+    else:
+        # No parseable location and not remote: keep the markup valid with a
+        # country-level jobLocation rather than emitting a JobPosting with none.
+        ld["jobLocation"] = {
+            "@type": "Place",
+            "address": {"@type": "PostalAddress", "addressCountry": "US"},
+        }
 
     # Clean up None values
     ld = {k: v for k, v in ld.items() if v is not None}
@@ -1346,8 +1381,10 @@ def export_for_frontend(jobs: list[dict], stats: dict):
     # Generate homepage
     _generate_homepage(list_jobs)
 
-    # Generate sitemap
-    _generate_sitemap(list_jobs)
+    # Generate sitemap. Only jobs that actually have a detail page (i.e. an
+    # enriched description, so they live in a /data/jobs chunk) get a /listing/
+    # URL — anything else 410s, so feed the sitemap the detail set, not all jobs.
+    _generate_sitemap([entry for entry, _, _ in detail_jobs])
 
 
 def _build_similar_index(detail_jobs: list[tuple[dict, str, str]]) -> dict:
@@ -1906,8 +1943,12 @@ def _write_sitemap_file(path: str, urls: list[str]):
         f.write(content)
 
 
-def _generate_sitemap(list_jobs: list[dict]):
-    """Generate sitemap index with split sitemaps for category and job pages."""
+def _generate_sitemap(detail_jobs: list[dict]):
+    """Generate sitemap index with split sitemaps for category and job pages.
+
+    detail_jobs is the set of jobs that actually have a /listing/ page (an
+    enriched description). Listing-less jobs 410, so they must not be listed.
+    """
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
     # Build category page URLs
@@ -1931,7 +1972,7 @@ def _generate_sitemap(list_jobs: list[dict]):
 
     # Build job detail page URLs
     job_urls = []
-    for job in list_jobs:
+    for job in detail_jobs:
         slug = job.get("slug")
         if not slug:
             continue
