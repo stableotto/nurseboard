@@ -3,7 +3,7 @@
 import re
 
 # Upstream data source
-UPSTREAM_MANIFEST_URL = "https://raw.githubusercontent.com/Feashliaa/job-board-aggregator/main/data/chunks/jobs_manifest.json"
+UPSTREAM_MANIFEST_URL = "https://raw.githubusercontent.com/Feashliaa/job-board-aggregator/data-live/data/chunks/jobs_manifest.json"
 
 # Database
 DB_PATH = "data/nursing_jobs.db"
