@@ -1,3 +1,5 @@
+import { aiAgentFamily, handleAgentRequest, isAgentPath } from "./_agent.js";
+
 const GTAG = `<!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-4X9CP554TV"></script>
 <script>
@@ -299,6 +301,20 @@ export default {
       return Response.redirect(
         `https://scrubshifts.com${url.pathname}${url.search}`,
         301,
+      );
+    }
+
+    // Agent API (REST + MCP). See frontend/_agent.js.
+    if (isAgentPath(url.pathname)) {
+      return handleAgentRequest(request, env);
+    }
+
+    // Record AI crawler / assistant page fetches so we can see which agents
+    // read the site and what they look at.
+    const ai = aiAgentFamily(request.headers.get("user-agent"));
+    if (ai) {
+      console.log(
+        JSON.stringify({ evt: "ai_fetch", family: ai.family, agent: ai.agent, path: url.pathname }),
       );
     }
 

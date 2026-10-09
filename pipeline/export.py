@@ -8,6 +8,7 @@ import os
 import logging
 import re
 import shutil
+import statistics
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from html import escape
@@ -26,6 +27,8 @@ from pipeline.config import (
     CORE_STATE_ABBRS,
 )
 from pipeline.metros import get_metro, get_metro_name, METROS
+from pipeline.classify import classify, normalize_pay
+from pipeline.agent_export import build_record, export_agent_data
 
 logger = logging.getLogger(__name__)
 
@@ -786,7 +789,83 @@ def _detect_employment_type(title: str | None, shift: str | None) -> str:
     return "FULL_TIME"
 
 
-def _build_job_jsonld(job: dict, desc_html: str, salary_display: str) -> str:
+# Agent employment_type -> Google for Jobs employmentType.
+_EMPLOYMENT_TYPE_LD = {
+    "full_time": "FULL_TIME",
+    "part_time": "PART_TIME",
+    "prn": "PER_DIEM",
+    "contract": "CONTRACTOR",
+    "travel": "TEMPORARY",
+    "temporary": "TEMPORARY",
+    "internship": "INTERN",
+}
+
+_SHIFT_WORDS = {
+    "days": "Day shift",
+    "nights": "Night shift",
+    "evenings": "Evening shift",
+    "rotating": "Rotating shifts",
+    "weekends": "Weekend shifts",
+    "prn": "As needed",
+}
+
+
+def _apply_facets_to_jsonld(ld: dict, rec: dict) -> None:
+    """Fill the JobPosting fields search engines and AI assistants read for
+    matching: occupation code, employment type, hours, qualifications,
+    experience, education, coordinates and incentive pay."""
+    emp = _EMPLOYMENT_TYPE_LD.get(rec.get("employment_type"))
+    if emp:
+        ld["employmentType"] = emp
+    if rec.get("soc"):
+        ld["occupationalCategory"] = f"{rec['soc']}.00"
+    ld["industry"] = "Healthcare"
+    ld["url"] = rec["listing_url"]
+
+    hours = []
+    if rec.get("shift") in _SHIFT_WORDS:
+        hours.append(_SHIFT_WORDS[rec["shift"]])
+    if rec.get("shift_hours"):
+        hours.append(f"{rec['shift_hours']}-hour shifts")
+    if rec.get("hours_per_week"):
+        hours.append(f"{rec['hours_per_week']} hours per week")
+    if hours:
+        ld["workHours"] = ", ".join(hours)
+
+    quals = []
+    if rec.get("certifications"):
+        quals.append("Certifications mentioned: " + ", ".join(rec["certifications"]))
+    if rec.get("compact_license"):
+        quals.append("Compact (multistate) nursing license accepted")
+    if quals:
+        ld["qualifications"] = ". ".join(quals)
+
+    years = rec.get("min_years_experience")
+    if rec.get("new_grad_ok") and not years:
+        ld["experienceRequirements"] = "no requirements"
+    elif years:
+        ld["experienceRequirements"] = {
+            "@type": "OccupationalExperienceRequirements",
+            "monthsOfExperience": years * 12,
+        }
+    if rec.get("bsn") == "required":
+        ld["educationRequirements"] = {
+            "@type": "EducationalOccupationalCredential",
+            "credentialCategory": "bachelor degree",
+        }
+    if rec.get("sign_on_bonus"):
+        ld["incentiveCompensation"] = f"${rec['sign_on_bonus']:,} sign-on bonus"
+
+    loc = ld.get("jobLocation")
+    if loc and rec.get("location") and "," in rec["location"]:
+        loc["address"]["addressLocality"] = rec["location"].split(",")[0].strip()
+    if loc and rec.get("lat") is not None:
+        loc["geo"] = {"@type": "GeoCoordinates", "latitude": rec["lat"], "longitude": rec["lng"]}
+
+
+def _build_job_jsonld(
+    job: dict, desc_html: str, salary_display: str, agent_record: dict | None = None
+) -> str:
     """Build JSON-LD JobPosting structured data for Google rich results."""
     plain = re.sub(r"<[^>]+>", " ", desc_html or "")
     plain = re.sub(r"\s+", " ", plain).strip()[:5000]
@@ -879,6 +958,9 @@ def _build_job_jsonld(job: dict, desc_html: str, salary_display: str) -> str:
     from datetime import timedelta as td
 
     ld["validThrough"] = (datetime.now(timezone.utc) + td(days=30)).strftime("%Y-%m-%d")
+
+    if agent_record:
+        _apply_facets_to_jsonld(ld, agent_record)
 
     return f'<script type="application/ld+json">{json.dumps(ld, separators=(",", ":"))}</script>'
 
@@ -1079,11 +1161,137 @@ def _build_hub_section_html(label: str, links: list[tuple[str, str, int]]) -> st
     return f'<section class="hub-section"><h2>{escape(label)}</h2><div class="hub-links">{items}</div></section>'
 
 
-def _generate_geo_data(list_jobs: list[dict]):
-    """Generate cities.json and download zips.json for radius search."""
+# Census Gazetteer files: ZIP code tabulation area and place centroids. The
+# postal-city CSV below supplies city names for ZIPs, but its own coordinates
+# are often a county centroid (every Los Angeles County ZIP shares one point),
+# so coordinates come from the Census files.
+_GAZETTEER_ZCTA_URL = "https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2024_Gazetteer/2024_Gaz_zcta_national.zip"
+_GAZETTEER_PLACE_URL = "https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2024_Gazetteer/2024_Gaz_place_national.zip"
+_POSTAL_CITIES_URL = "https://raw.githubusercontent.com/midwire/free_zipcode_data/master/all_us_zipcodes.csv"
+
+# "Arcadia city", "Abanda CDP", "Nashville-Davidson metropolitan government (balance)"
+_PLACE_BALANCE_RE = re.compile(r"\s+\(balance\)$", re.IGNORECASE)
+_PLACE_SUFFIX_RE = re.compile(
+    r"\s+(?:city and borough|metropolitan government|metro government|unified government"
+    r"|consolidated government|urban county|zona urbana|comunidad|municipality|city|town|village|borough|CDP|plantation|corporation)$",
+    re.IGNORECASE,
+)
+
+
+def _gazetteer_rows(url: str) -> list[list[str]]:
+    import io
+    import zipfile
+
+    import requests
+
+    r = requests.get(url, timeout=60)
+    r.raise_for_status()
+    with zipfile.ZipFile(io.BytesIO(r.content)) as zf:
+        text = zf.read(zf.namelist()[0]).decode("utf-8", errors="replace")
+    lines = text.splitlines()
+    return [[c.strip() for c in line.split("\t")] for line in lines[1:] if line.strip()]
+
+
+def _place_names(name: str) -> list[str]:
+    """Lowercase lookup names for a Census place: "St. Louis city" -> ["st. louis",
+    "saint louis"]; "Nashville-Davidson metropolitan government (balance)" ->
+    ["nashville-davidson", "nashville"]."""
+    base = _PLACE_SUFFIX_RE.sub("", _PLACE_BALANCE_RE.sub("", name)).strip().lower()
+    names = [base]
+    if base.startswith("urban "):  # "Urban Honolulu CDP"
+        names.append(base[6:])
+    for sep in ("-", "/"):
+        if sep in base:
+            names.append(base.split(sep)[0].strip())
+    if base.startswith("st. "):
+        names.append("saint " + base[4:])
+    elif base.startswith("saint "):
+        names.append("st. " + base[6:])
+    return names
+
+
+def _download_geo_tables() -> tuple[dict, dict, dict]:
+    """Return (zip -> [lat, lng], "city|ST" -> [lat, lng], city -> ST hints).
+
+    The hints resolve a city named without a state ("Denver") to the state
+    whose incorporated place of that name is largest by land area."""
     import csv
     import io
 
+    import requests
+
+    logger.info("Downloading Census gazetteer and postal city data...")
+    zcta: dict[str, list[float]] = {}
+    places: dict[str, tuple] = {}
+    try:
+        for row in _gazetteer_rows(_GAZETTEER_ZCTA_URL):
+            try:
+                zcta[row[0]] = [round(float(row[5]), 4), round(float(row[6]), 4)]
+            except (IndexError, ValueError):
+                continue
+        # Census places: prefer the incorporated place, then the larger land
+        # area, when two places in a state share a name (a city and a CDP).
+        for row in _gazetteer_rows(_GAZETTEER_PLACE_URL):
+            try:
+                st, name, funcstat, aland = row[0], row[3], row[5], int(row[6])
+                lat, lng = round(float(row[10]), 4), round(float(row[11]), 4)
+            except (IndexError, ValueError):
+                continue
+            rank = (funcstat == "A", aland)
+            for n in _place_names(name):
+                key = f"{n}|{st}"
+                if key not in places or rank > places[key][0]:
+                    places[key] = (rank, [lat, lng])
+    except Exception as e:
+        # Degrade to the postal CSV's own coordinates rather than no geo data.
+        logger.warning("Census gazetteer unavailable (%s); using postal coordinates only", e)
+        zcta, places = {}, {}
+
+    # Postal city names (Brooklyn, Queens, …) placed at the mean of their ZIPs'
+    # Census centroids. Fall back to the CSV's own point only for ZIPs the
+    # Census does not tabulate (PO boxes, unique ZIPs).
+    r = requests.get(_POSTAL_CITIES_URL, timeout=30)
+    r.raise_for_status()
+    zip_data = dict(zcta)
+    postal: dict[str, tuple[list, list]] = {}
+    for row in csv.reader(io.StringIO(r.text)):
+        if len(row) < 7 or not row[0].isdigit():
+            continue
+        code, city, state, _county, _area, lat, lng = row[:7]
+        coords = zcta.get(code)
+        if coords is None:
+            try:
+                coords = [round(float(lat), 4), round(float(lng), 4)]
+            except ValueError:
+                continue
+            zip_data[code] = coords
+        lats, lngs = postal.setdefault(f"{city.lower()}|{state}", ([], []))
+        lats.append(coords[0])
+        lngs.append(coords[1])
+
+    # Median, not mean: a postal city can own outlying ZIPs (Honolulu's
+    # include remote islands) that would drag a mean far from the city.
+    all_city_avg = {
+        key: [round(statistics.median(lats), 4), round(statistics.median(lngs), 4)]
+        for key, (lats, lngs) in postal.items()
+    }
+    all_city_avg.update({key: coords for key, (_, coords) in places.items()})
+
+    best: dict[str, tuple] = {}
+    for key, (rank, _) in places.items():
+        name, st = key.rsplit("|", 1)
+        if name not in best or rank > best[name][0]:
+            best[name] = (rank, st)
+    multi_state: dict[str, int] = {}
+    for key in all_city_avg:
+        name = key.rsplit("|", 1)[0]
+        multi_state[name] = multi_state.get(name, 0) + 1
+    hints = {name: st for name, (_, st) in best.items() if multi_state.get(name, 0) > 1}
+    return zip_data, all_city_avg, hints
+
+
+def _generate_geo_data(list_jobs: list[dict]):
+    """Generate cities.json and download zips.json for radius search."""
     # Collect unique city|state from our job data
     job_cities = set()
     for j in list_jobs:
@@ -1103,45 +1311,14 @@ def _generate_geo_data(list_jobs: list[dict]):
 
     if need_download:
         try:
-            import requests
-
-            logger.info("Downloading zip code data...")
-            r = requests.get(
-                "https://raw.githubusercontent.com/midwire/free_zipcode_data/master/all_us_zipcodes.csv",
-                timeout=30,
-            )
-            reader = csv.reader(io.StringIO(r.text))
-
-            zip_data = {}
-            city_coords: dict[str, tuple[list, list]] = {}
-            for row in reader:
-                if len(row) < 7:
-                    continue
-                code, city, state, _county, _area, lat, lng = row[:7]
-                try:
-                    lat_f, lng_f = float(lat), float(lng)
-                except ValueError:
-                    continue
-                zip_data[code] = [round(lat_f, 4), round(lng_f, 4)]
-                key = f"{city.lower()}|{state}"
-                if key not in city_coords:
-                    city_coords[key] = ([], [])
-                city_coords[key][0].append(lat_f)
-                city_coords[key][1].append(lng_f)
-
+            zip_data, all_city_avg, city_hints = _download_geo_tables()
             with open(zips_path, "w") as f:
                 json.dump(zip_data, f, separators=(",", ":"))
-
-            # Save ALL city averages (not filtered) so we can rebuild cities.json each run
-            all_city_avg = {}
-            for key, (lats, lngs) in city_coords.items():
-                all_city_avg[key] = [
-                    round(sum(lats) / len(lats), 4),
-                    round(sum(lngs) / len(lngs), 4),
-                ]
+            with open(os.path.join(EXPORT_DIR, "city_hints.json"), "w") as f:
+                json.dump(city_hints, f, separators=(",", ":"))
+            # Save ALL city coordinates (not filtered) so we can rebuild cities.json each run
             with open(all_cities_path, "w") as f:
                 json.dump(all_city_avg, f, separators=(",", ":"))
-
             logger.info(
                 "Downloaded geo data: %d zips, %d total cities",
                 len(zip_data),
@@ -1327,6 +1504,7 @@ def export_for_frontend(jobs: list[dict], stats: dict):
 
     list_jobs = []
     detail_jobs = []
+    raw_by_id: dict[str, dict] = {}
     skipped_non_us = 0
 
     for job in jobs:
@@ -1335,6 +1513,7 @@ def export_for_frontend(jobs: list[dict], stats: dict):
             continue
         entry = _build_list_entry(job)
         list_jobs.append(entry)
+        raw_by_id[entry["id"]] = job
         if job.get("description_html") or job.get("description_plain"):
             # Pass url separately for detail pages (stripped from list entries to save space)
             detail_jobs.append(
@@ -1385,8 +1564,19 @@ def export_for_frontend(jobs: list[dict], stats: dict):
 
     logger.info("Exported %d jobs to JSON", len(list_jobs))
 
+    # Structured facets (role, specialty, setting, pay, requirements, coords)
+    # for agents and for the JSON-LD on each listing.
+    # Never let the agent layer stop the site itself from updating: on any
+    # failure, skip it and export the pages as before.
+    try:
+        agent_records = _build_agent_records(detail_jobs, raw_by_id)
+        export_agent_data(list(agent_records.values()))
+    except Exception:
+        logger.exception("Agent export failed; continuing without agent data")
+        agent_records = {}
+
     # Generate job detail pages at clean URLs
-    _generate_job_detail_pages(detail_jobs)
+    _generate_job_detail_pages(detail_jobs, agent_records)
 
     # Generate category pages (role, state, role×state, company)
     _generate_all_category_pages(list_jobs)
@@ -1443,7 +1633,131 @@ def _build_similar_index(detail_jobs: list[tuple[dict, str, str]]) -> dict:
     return index
 
 
-def _generate_job_detail_pages(detail_jobs: list[tuple[dict, str, str]]):
+def _load_geo_table(name: str) -> dict:
+    path = os.path.join(EXPORT_DIR, name)
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        logger.warning("No geo table at %s; agent records will lack some lat/lng", path)
+        return {}
+
+
+# "Minneapolis, MN 55407" / "MN 55407-1234" in a description's address block.
+_ADDRESS_ZIP_RE = re.compile(r"\b([A-Z]{2})\s+(\d{5})(?:-\d{4})?\b")
+# ATS boilerplate such as "Primary City/State: Phoenix, Arizona".
+_CITY_STATE_LABEL_RE = re.compile(
+    r"(?:City/State|City, State|Work Location|Job Location|Location)\s*:\s*([A-Z][A-Za-z.' \-]+?),\s*("
+    + "|".join(sorted(map(re.escape, STATE_NAMES.values()), key=len, reverse=True))
+    + r"|[A-Z]{2})\b"
+)
+
+
+def _locate(entry: dict, desc_plain: str, cities: dict, zips: dict) -> tuple:
+    """Best-effort (state, [lat, lng]) for a job. ATS location fields are often a
+    facility name ("Cleveland Clinic Main Campus"), so fall back to a state +
+    ZIP address in the description, and to a bare state name."""
+    state = entry.get("state")
+    loc = (entry.get("location") or "").strip()
+    if "," in loc and state:
+        city = loc.split(",")[0].strip().lower()
+        city = re.sub(r"^(?:st\.?|saint)\s+", "st. ", city)
+        coords = cities.get(f"{city}|{state}") or cities.get(f"{city.replace('st. ', 'saint ', 1)}|{state}")
+        if coords:
+            return state, coords
+    head = (desc_plain or "")[:3000]
+    for m in _CITY_STATE_LABEL_RE.finditer(head):
+        st = m.group(2) if m.group(2) in _US_STATES else _FULL_STATE_NAMES.get(m.group(2))
+        if st and (state is None or st == state):
+            city = re.sub(r"^(?:st\.?|saint)\s+", "st. ", m.group(1).strip().lower())
+            coords = cities.get(f"{city}|{st}")
+            if coords:
+                return st, coords
+    for m in _ADDRESS_ZIP_RE.finditer(head):
+        st, code = m.group(1), m.group(2)
+        if st in _US_STATES and (state is None or st == state) and code in zips:
+            return st, zips[code]
+    if not state and loc in _FULL_STATE_NAMES:
+        return _FULL_STATE_NAMES[loc], None
+    return state, None
+
+
+def _build_agent_records(
+    detail_jobs: list[tuple[dict, str, str]], raw_by_id: dict[str, dict]
+) -> dict[str, dict]:
+    """Classify every linkable job and build its agent record, keyed by job id."""
+    geo = (_load_geo_table("all_cities.json"), _load_geo_table("zips.json"))
+    records: dict[str, dict] = {}
+    failed = 0
+    for entry, desc_html, job_url in detail_jobs:
+        try:
+            records[entry["id"]] = _agent_record(entry, desc_html, job_url, raw_by_id, geo)
+        except Exception:
+            failed += 1
+            if failed <= 5:
+                logger.exception("Could not classify job %s", entry.get("id"))
+    if failed:
+        logger.warning("Skipped %d jobs in agent export after classification errors", failed)
+    _fill_state_from_employer(records)
+    return records
+
+
+def _fill_state_from_employer(records: dict[str, dict]) -> None:
+    """Jobs whose location is only a facility name get their employer's state
+    when that employer's other jobs are overwhelmingly (>=90%, n>=5) in one
+    state. Coordinates are not guessed, so these jobs appear in state
+    searches but not radius searches."""
+    by_company: dict[str, list[str]] = {}
+    for r in records.values():
+        if r.get("state") and r.get("company"):
+            by_company.setdefault(r["company"], []).append(r["state"])
+    dominant: dict[str, str] = {}
+    for company, states in by_company.items():
+        if len(states) >= 5:
+            top = max(set(states), key=states.count)
+            if states.count(top) / len(states) >= 0.9:
+                dominant[company] = top
+    filled = 0
+    for r in records.values():
+        if not r.get("state") and not r.get("remote") and r.get("company") in dominant:
+            r["state"] = dominant[r["company"]]
+            filled += 1
+    if filled:
+        logger.info("Assigned employer state to %d jobs with facility-only locations", filled)
+
+
+def _agent_record(entry: dict, desc_html: str, job_url: str, raw_by_id: dict, geo: tuple) -> dict:
+    job = raw_by_id.get(entry["id"], {})
+    desc_plain = job.get("description_plain") or re.sub(
+        r"\s+", " ", re.sub(r"<[^>]+>", " ", desc_html or "")
+    )
+    facets = classify(
+        entry["title"],
+        desc_plain,
+        entry.get("departments"),
+        entry.get("company_name"),
+        entry.get("location"),
+        entry.get("shift"),
+    )
+    listed = job.get("salary_min") is not None or job.get("salary_max") is not None
+    pay = normalize_pay(
+        entry.get("salary_min"),
+        entry.get("salary_max"),
+        "listed" if listed else "description",
+    )
+    state, coords = _locate(entry, desc_plain, *geo)
+    if state and not entry.get("state"):
+        entry = {**entry, "state": state}
+    last_verified = max(
+        filter(None, [job.get("upstream_scraped_at"), job.get("enriched_at")]),
+        default=None,
+    )
+    return build_record(entry, facets, pay, job_url, coords, last_verified)
+
+
+def _generate_job_detail_pages(
+    detail_jobs: list[tuple[dict, str, str]], agent_records: dict[str, dict] | None = None
+):
     """Generate chunked JSON detail files keyed by 2-char hex prefix.
 
     Instead of one file per job (which exceeds Cloudflare Pages' 20K file
@@ -1463,7 +1777,8 @@ def _generate_job_detail_pages(detail_jobs: list[tuple[dict, str, str]]):
         prefix = jid[:2]
 
         salary = _format_salary_html(entry.get("salary_min"), entry.get("salary_max"))
-        jsonld = _build_job_jsonld(entry, desc_html, salary)
+        record = (agent_records or {}).get(jid)
+        jsonld = _build_job_jsonld(entry, desc_html, salary, record)
 
         detail = {
             **entry,
@@ -1471,6 +1786,8 @@ def _generate_job_detail_pages(detail_jobs: list[tuple[dict, str, str]]):
             "description_html": desc_html,
             "jsonld": jsonld,
         }
+        if record:
+            detail["agent"] = record
         similar = similar_index.get(jid)
         if similar:
             detail["similar"] = similar
@@ -2133,7 +2450,11 @@ def _generate_sitemap(detail_jobs: list[dict]):
         f.write(sitemap_index)
 
     with open(os.path.join(FRONTEND_DIR, "robots.txt"), "w") as f:
-        f.write(f"User-agent: *\nAllow: /\n\nSitemap: {SITE_URL}/sitemap.xml\n")
+        f.write(
+            "# AI agents: structured job data is documented at "
+            f"{SITE_URL}/llms.txt (REST API at /api/v1, MCP server at /mcp).\n"
+            f"User-agent: *\nAllow: /\n\nSitemap: {SITE_URL}/sitemap.xml\n"
+        )
 
     total = len(category_urls) + len(job_urls)
     logger.info(

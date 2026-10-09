@@ -9,6 +9,10 @@ concurrency:
   group: pipeline
   cancel-in-progress: false
 
+permissions:
+  contents: read
+  issues: write
+
 jobs:
   enrich:
     runs-on: ubuntu-latest
@@ -122,3 +126,26 @@ jobs:
         env:
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
         run: python -m pipeline.google_indexing frontend/sitemap-pages.xml frontend/sitemap-jobs-*.xml || true
+
+      - name: Notify IndexNow (Bing and others)
+        if: success()
+        run: python -m pipeline.indexnow frontend/sitemap-pages.xml frontend/sitemap-jobs-*.xml || true
+
+      # A failed run means the site stops updating. Open (or comment on) one
+      # issue so the failure is visible instead of silent.
+      - name: Report failure
+        if: failure() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh label create pipeline-failure --color B60205 --description "Scheduled pipeline run failed" --force
+          open=$(gh issue list --label pipeline-failure --state open --json number --jq '.[0].number')
+          msg="Scheduled run of **Enrich & Deploy** failed: $RUN_URL"
+          if [ -n "$open" ]; then
+            gh issue comment "$open" --body "$msg"
+          else
+            gh issue create --title "Enrich & Deploy is failing" --label pipeline-failure --body "$msg
+
+          Jobs on scrubshifts.com stop updating while this fails. Close this issue once a run succeeds."
+          fi

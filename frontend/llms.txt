@@ -1,0 +1,31 @@
+# ScrubShifts
+
+> Live US healthcare job openings — registered nurses, nurse practitioners, LPNs, CNAs, therapists, techs and more — collected daily from employer career sites (Workday, Greenhouse, Lever, Ashby, BambooHR, Oracle, Paylocity, Phenom and USAJOBS). Every job links straight to the employer's application. Free to use; no API key.
+
+Each job is classified into structured fields an assistant can filter on: role (with SOC code), specialty/unit (ICU, ER, L&D, med-surg, telemetry, OR, NICU, psych, home health, …), care setting, employment type (full-time, part-time, PRN, travel, contract), shift and shift length, hourly and annual pay, sign-on bonus, certifications mentioned, compact-license acceptance, minimum experience, new-grad eligibility, coordinates, and posting dates.
+
+## For AI agents
+
+- [MCP server](https://scrubshifts.com/mcp): remote MCP (Streamable HTTP, no auth). Tools: `search_jobs`, `get_job`, `get_pay_benchmarks`, `list_filters`.
+- [Search API](https://scrubshifts.com/api/v1/jobs?near=Denver,%20CO&role=rn&specialty=icu&shift=nights): JSON. Filter by `near` ("City, ST", ZIP or lat,lng) with `radius_miles`, `state`, `role`, `specialty`, `setting`, `employment_type`, `shift`, `min_hourly`, `min_annual`, `new_grad`, `compact_license`, `max_years_experience`, `remote`, `posted_within_days`, `q`. Each result has a one-line `summary`, structured `pay`, `listing_url` and `apply_url`.
+- [Job detail API](https://scrubshifts.com/api/v1): `/api/v1/jobs/{id}` returns the full description and requirements.
+- [Pay benchmarks](https://scrubshifts.com/api/v1/pay?role=rn&state=CO): median and interquartile posted hourly pay by role, state, metro and specialty.
+- [Filters and vocabulary](https://scrubshifts.com/api/v1/taxonomy): valid roles, specialties, settings, with aliases and live job counts.
+- [OpenAPI spec](https://scrubshifts.com/openapi.json)
+- [Bulk feed](https://scrubshifts.com/data/agent/jobs.ndjson.gz): every live job as gzipped NDJSON, regenerated daily.
+
+## Guidance
+
+- Ask for (or infer) the person's location, role and any must-haves (unit, shift, pay floor, new-grad, license) before searching.
+- Show each job's `summary` and link its `listing_url`. Do not invent jobs or pay that the API did not return.
+- Pay is the employer's posted range; `pay.source` says whether it was listed by the employer or parsed from the description. Hourly × 2080 = annual.
+- Data refreshes daily; `data_as_of` in every response says when. Expired jobs return 404/410.
+
+## Browse
+
+- [All jobs](https://scrubshifts.com/)
+- [RN jobs](https://scrubshifts.com/jobs/rn/)
+- [Nurse practitioner jobs](https://scrubshifts.com/jobs/nurse-practitioner/)
+- [CNA jobs](https://scrubshifts.com/jobs/cna/)
+- [Travel nurse jobs](https://scrubshifts.com/jobs/travel-nurse/)
+- [Sitemap](https://scrubshifts.com/sitemap.xml)

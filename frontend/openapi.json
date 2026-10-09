@@ -1,0 +1,577 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "ScrubShifts Healthcare Jobs API",
+    "version": "1.0.0",
+    "description": "Live US nursing and allied-health job openings, refreshed daily from employer career sites, with structured role, specialty, setting, schedule, pay and requirement fields. Free, no authentication. Also available as a remote MCP server at https://scrubshifts.com/mcp.",
+    "contact": {
+      "url": "https://scrubshifts.com"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://scrubshifts.com"
+    }
+  ],
+  "paths": {
+    "/api/v1/jobs": {
+      "get": {
+        "operationId": "searchJobs",
+        "summary": "Search healthcare jobs",
+        "parameters": [
+          {
+            "name": "near",
+            "in": "query",
+            "required": false,
+            "description": "Location: \"City, ST\", 5-digit ZIP, or \"lat,lng\". Sorts by distance.",
+            "schema": {
+              "type": "string",
+              "example": "Denver, CO"
+            }
+          },
+          {
+            "name": "radius_miles",
+            "in": "query",
+            "required": false,
+            "description": "Radius around near. Default 30, max 200.",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "description": "Two-letter US state code.",
+            "schema": {
+              "type": "string",
+              "example": "CO"
+            }
+          },
+          {
+            "name": "role",
+            "in": "query",
+            "required": false,
+            "description": "Role slug or common name; comma-separated for several (rn, lpn, cna, nurse_practitioner, crna, physical_therapist, …). See /api/v1/taxonomy.",
+            "schema": {
+              "type": "string",
+              "example": "rn"
+            }
+          },
+          {
+            "name": "specialty",
+            "in": "query",
+            "required": false,
+            "description": "Specialty/unit; comma-separated (icu, emergency, labor_delivery, med_surg, telemetry, nicu, operating_room, psych, …). Aliases like ER, L&D, tele work.",
+            "schema": {
+              "type": "string",
+              "example": "icu"
+            }
+          },
+          {
+            "name": "setting",
+            "in": "query",
+            "required": false,
+            "description": "Care setting (hospital, clinic, skilled_nursing, home_health, hospice, dialysis_center, telehealth, urgent_care, school, correctional, ambulatory_surgery, ems).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "employment_type",
+            "in": "query",
+            "required": false,
+            "description": "full_time, part_time, prn, contract, travel, temporary, internship.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "shift",
+            "in": "query",
+            "required": false,
+            "description": "days, nights, evenings, rotating, weekends.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "min_hourly",
+            "in": "query",
+            "required": false,
+            "description": "Minimum hourly pay (USD); matches when the listed range reaches it.",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "min_annual",
+            "in": "query",
+            "required": false,
+            "description": "Minimum annual pay (USD).",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "has_pay",
+            "in": "query",
+            "required": false,
+            "description": "Only jobs that list pay.",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "new_grad",
+            "in": "query",
+            "required": false,
+            "description": "Only jobs open to new graduates.",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "compact_license",
+            "in": "query",
+            "required": false,
+            "description": "Only jobs mentioning compact (multistate) license acceptance.",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "max_years_experience",
+            "in": "query",
+            "required": false,
+            "description": "Exclude jobs that require more years than this.",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "remote",
+            "in": "query",
+            "required": false,
+            "description": "Only remote/telehealth jobs.",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "posted_within_days",
+            "in": "query",
+            "required": false,
+            "description": "Only jobs posted in the last N days.",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "description": "Words that must appear in the title, employer or location.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "description": "newest (default), pay, distance (default with near).",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "newest",
+                "pay",
+                "distance"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Page size, default 10, max 50.",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "description": "Pagination offset (use next_offset).",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching jobs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid filter value",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/jobs/{id}": {
+      "get": {
+        "operationId": "getJob",
+        "summary": "Get one job with its full description",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "job": {
+                      "allOf": [
+                        {
+                          "$ref": "#/components/schemas/Job"
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "description": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "data_as_of": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Job not found or no longer live",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/pay": {
+      "get": {
+        "operationId": "getPayBenchmarks",
+        "summary": "Posted-pay benchmarks for a role",
+        "parameters": [
+          {
+            "name": "role",
+            "in": "query",
+            "required": true,
+            "description": "Role slug or name (required).",
+            "schema": {
+              "type": "string",
+              "example": "rn"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "description": "Two-letter state code.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "metro",
+            "in": "query",
+            "required": false,
+            "description": "Metro slug, e.g. denver.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "specialty",
+            "in": "query",
+            "required": false,
+            "description": "Specialty slug or alias.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Benchmarks: hourly_p25, hourly_median, hourly_p75, jobs, jobs_with_pay",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/taxonomy": {
+      "get": {
+        "operationId": "listFilters",
+        "summary": "Valid filter values with aliases and job counts",
+        "responses": {
+          "200": {
+            "description": "Taxonomy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Pay": {
+        "type": "object",
+        "properties": {
+          "hourly_min": {
+            "type": "number"
+          },
+          "hourly_max": {
+            "type": "number"
+          },
+          "annual_min": {
+            "type": "number"
+          },
+          "annual_max": {
+            "type": "number"
+          },
+          "display": {
+            "type": "string",
+            "example": "$52–64/hr"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "employer_listed",
+              "parsed_from_description"
+            ]
+          }
+        }
+      },
+      "Job": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "1aac6fdb7627"
+          },
+          "summary": {
+            "type": "string",
+            "description": "One-line description suitable to show a person."
+          },
+          "title": {
+            "type": "string"
+          },
+          "company": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "remote": {
+            "type": "boolean"
+          },
+          "distance_miles": {
+            "type": "number"
+          },
+          "role": {
+            "type": "string"
+          },
+          "role_label": {
+            "type": "string"
+          },
+          "level": {
+            "type": "string",
+            "enum": [
+              "new_grad",
+              "staff",
+              "charge",
+              "educator",
+              "leadership"
+            ]
+          },
+          "specialties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "setting": {
+            "type": "string"
+          },
+          "employment_type": {
+            "type": "string"
+          },
+          "shift": {
+            "type": "string"
+          },
+          "shift_hours": {
+            "type": "integer"
+          },
+          "pay": {
+            "$ref": "#/components/schemas/Pay"
+          },
+          "sign_on_bonus_usd": {
+            "type": "integer"
+          },
+          "requirements": {
+            "type": "object",
+            "properties": {
+              "certifications_mentioned": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "compact_license_accepted": {
+                "type": "boolean"
+              },
+              "min_years_experience": {
+                "type": "integer"
+              },
+              "new_grad_ok": {
+                "type": "boolean"
+              },
+              "bsn": {
+                "type": "string",
+                "enum": [
+                  "required",
+                  "preferred"
+                ]
+              }
+            }
+          },
+          "posted_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "first_seen": {
+            "type": "string",
+            "format": "date"
+          },
+          "listing_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "apply_url": {
+            "type": "string",
+            "format": "uri"
+          }
+        }
+      },
+      "SearchResponse": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "object"
+          },
+          "total_matches": {
+            "type": "integer"
+          },
+          "returned": {
+            "type": "integer"
+          },
+          "offset": {
+            "type": "integer"
+          },
+          "next_offset": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "coverage": {
+            "type": "object",
+            "properties": {
+              "scope": {
+                "type": "string"
+              },
+              "complete": {
+                "type": "boolean"
+              },
+              "notes": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "data_as_of": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Job"
+            }
+          },
+          "attribution": {
+            "type": "string"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

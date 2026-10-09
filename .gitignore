@@ -8,3 +8,7 @@ frontend/logos/
 frontend/sitemap.xml
 frontend/robots.txt
 .gstack/
+frontend/sitemap-*.xml
+.wrangler/
+node_modules/
+.pytest_cache/
