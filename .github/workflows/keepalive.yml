@@ -1,0 +1,40 @@
+name: Keepalive
+
+# GitHub disables scheduled workflows after 60 days without a commit to the
+# repo. The pipeline doesn't commit (its output is gitignored and deployed
+# straight to Cloudflare), so without this the daily jobs silently stop.
+# A monthly timestamp commit keeps the repo active; none of the workflows
+# trigger on push, so it doesn't cause a deploy.
+
+on:
+  schedule:
+    - cron: "17 6 1 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Commit timestamp
+        run: |
+          date -u +%Y-%m-%dT%H:%M:%SZ > .github/keepalive
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/keepalive
+          git commit -m "Keepalive: keep scheduled workflows enabled"
+          git push
+
+      - name: Re-enable scheduled workflows
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for wf in nursing-pipeline.yml enrich.yml; do
+            gh workflow enable "$wf" --repo "${{ github.repository }}"
+          done
