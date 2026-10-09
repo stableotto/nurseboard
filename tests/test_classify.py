@@ -59,6 +59,15 @@ def test_new_grad_and_prn():
     assert "employment_type" not in classify("Float Pool RN")
 
 
+def test_new_grad_ok_needs_explicit_welcome():
+    instructor = classify("Travel Clinical Nurse Instructor", "Teach and support new graduate nurses on the unit.")
+    assert "new_grad_ok" not in instructor.get("requirements", {})
+    staff = classify("RN - Med Surg", "New grads welcome! Supportive preceptorship.")
+    assert staff["requirements"]["new_grad_ok"] is True
+    mentions = classify("RN - Med Surg", "Mentor new graduate nurses as a preceptor.")
+    assert "new_grad_ok" not in mentions.get("requirements", {})
+
+
 def test_remote_sets_telehealth():
     c = classify("Virtual Family Nurse Practitioner", location="Remote")
     assert c["remote"] is True and c["setting"] == "telehealth"

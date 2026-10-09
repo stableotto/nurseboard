@@ -459,7 +459,7 @@ _YEARS_RE = re.compile(
 _NEW_GRAD_OK_RE = re.compile(
     r"\bnew\s+grad(?:uate)?s?\s+(?:are\s+)?(?:welcome|encouraged|considered|accepted|may\s+apply|eligible)"
     r"|\bno\s+(?:prior\s+)?experience\s+(?:is\s+)?(?:required|necessary|needed)"
-    r"|\bwill\s+train\b|\bnew\s+graduate\s+(?:nurse|RN)s?\b|\bentry[\s\-]level\b",
+    r"|\bwill\s+train\b|\bentry[\s\-]level\b",
     re.I,
 )
 _BSN_REQ_RE = re.compile(
@@ -503,7 +503,9 @@ def classify_requirements(title: str | None, description: str | None, level: str
             years.append(n)
     if years:
         out["min_years_experience"] = min(years)
-    if level == "new_grad" or _NEW_GRAD_OK_RE.search(desc) or (years and min(years) == 0):
+    if level == "new_grad" or (
+        level in ("staff", "charge") and (_NEW_GRAD_OK_RE.search(desc) or (years and min(years) == 0))
+    ):
         out["new_grad_ok"] = True
     elif years and min(years) >= 1:
         out["new_grad_ok"] = False
