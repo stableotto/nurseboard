@@ -106,6 +106,14 @@ def _parse_sitemap_urls(sitemap_path: str) -> list[str]:
     return [loc for loc, _ in _parse_sitemap_entries(sitemap_path)]
 
 
+def _error_message(resp) -> str:
+    try:
+        err = resp.json().get("error", {})
+        return f"{err.get('status', '')}: {err.get('message', '')}".strip(": ")
+    except ValueError:
+        return resp.text[:200].replace("\n", " ").replace("{", "(").replace("}", ")")
+
+
 def notify_urls(urls: list[str], access_token: str, action: str = "URL_UPDATED") -> dict:
     """Send individual URL notifications to the Indexing API.
 
@@ -133,7 +141,17 @@ def notify_urls(urls: list[str], access_token: str, action: str = "URL_UPDATED")
             else:
                 errors += 1
                 if sent < 5:  # Log first few errors
-                    logger.warning("  Error for %s: %s", url, resp.text[:200])
+                    # One line, no braces: GitHub masks every line of the
+                    # multi-line service-account secret, including "{" and "}".
+                    logger.warning("  Error for %s: HTTP %d %s", url, resp.status_code, _error_message(resp))
+                if resp.status_code == 403 and success == 0 and errors >= 3:
+                    logger.error(
+                        "  Google rejects every URL with 403 (URL ownership not verified). Add the service "
+                        "account's client_email as an Owner of the scrubshifts.com property in Search Console "
+                        "(Settings > Users and permissions). Stopping to save quota."
+                    )
+                    sent += 1
+                    break
         except Exception as e:
             errors += 1
             if sent < 5:

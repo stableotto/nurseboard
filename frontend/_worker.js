@@ -1,4 +1,6 @@
 import { aiAgentFamily, handleAgentRequest, isAgentPath } from "./_agent.js";
+// Pages ignores functions/ when _worker.js exists, so the worker routes it.
+import { onRequestOptions as subscribeOptions, onRequestPost as subscribePost } from "./functions/api/subscribe.js";
 
 const GTAG = `<!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-4X9CP554TV"></script>
@@ -302,6 +304,13 @@ export default {
         `https://scrubshifts.com${url.pathname}${url.search}`,
         301,
       );
+    }
+
+    // Job alert signups (frontend/alerts.html).
+    if (url.pathname === "/api/subscribe") {
+      if (request.method === "POST") return subscribePost({ request, env });
+      if (request.method === "OPTIONS") return subscribeOptions();
+      return new Response(null, { status: 405, headers: { Allow: "POST, OPTIONS" } });
     }
 
     // Agent API (REST + MCP). See frontend/_agent.js.

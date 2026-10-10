@@ -77,7 +77,9 @@ def run(sitemap_paths: list[str], with_pages: bool = False) -> None:
     if resp.status_code in (200, 202):
         logger.info("IndexNow accepted (%d)", resp.status_code)
     else:
-        logger.warning("IndexNow returned %d: %s", resp.status_code, resp.text[:300])
+        # Strip braces: GitHub masks "{" and "}" (lines of a multi-line secret).
+        body = resp.text[:300].replace("{", "(").replace("}", ")")
+        logger.warning("IndexNow returned %d: %s", resp.status_code, body)
 
 
 if __name__ == "__main__":

@@ -1,8 +1,8 @@
 {
-  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.stableotto/scrubshifts",
   "title": "ScrubShifts Healthcare Jobs",
-  "description": "Live US nursing and allied-health jobs, refreshed daily: search by location, role, specialty, shift, pay and requirements; pay benchmarks.",
+  "description": "Live US nursing and allied-health jobs, updated daily. Search by place, role, shift, pay.",
   "version": "1.0.0",
   "websiteUrl": "https://scrubshifts.com",
   "repository": {

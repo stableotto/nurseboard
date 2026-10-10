@@ -1,58 +1,72 @@
 [
   {
     "domain": "jobs.ascension.org",
+    "name": "Ascension",
     "hospitals": 56
   },
   {
     "domain": "jobs.bswhealth.com",
+    "name": "Baylor Scott & White Health",
     "hospitals": 28
   },
   {
     "domain": "jobs.ardenthealth.com",
+    "name": "Ardent Health",
     "hospitals": 17
   },
   {
     "domain": "apply.piedmontcareers.org",
+    "name": "Piedmont Healthcare",
     "hospitals": 14
   },
   {
     "domain": "careers.prismahealth.org",
+    "name": "Prisma Health",
     "hospitals": 11
   },
   {
     "domain": "careers.bsmhealth.org",
+    "name": "Bon Secours Mercy Health",
     "hospitals": 10
   },
   {
     "domain": "careers.mercy.com",
+    "name": "Mercy",
     "hospitals": 8
   },
   {
     "domain": "jobs.memorialhermann.org",
+    "name": "Memorial Hermann",
     "hospitals": 8
   },
   {
     "domain": "careers.dukehealth.org",
+    "name": "Duke Health",
     "hospitals": 3
   },
   {
     "domain": "careers.baptisthealth.net",
+    "name": "Baptist Health South Florida",
     "hospitals": 3
   },
   {
     "domain": "jobs.froedtert.com",
+    "name": "Froedtert ThedaCare Health",
     "hospitals": 3
   },
   {
     "domain": "careers.conehealth.com",
+    "name": "Cone Health",
     "hospitals": 1
   },
   {
     "domain": "jobs.trinity-health.org",
+    "name": "Trinity Health",
     "hospitals": 1
   },
   {
     "domain": "www.hhccareers.org",
+    "name": "Hartford HealthCare",
     "hospitals": 1
   }
 ]

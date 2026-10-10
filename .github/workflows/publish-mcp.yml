@@ -1,0 +1,35 @@
+name: Publish MCP server to registry
+
+# Lists https://scrubshifts.com/mcp in the official MCP registry
+# (registry.modelcontextprotocol.io), which MCP clients and directories read.
+# Authenticates with this workflow's GitHub OIDC token, which grants the
+# io.github.stableotto/* namespace. Bump "version" in server.json to republish.
+
+on:
+  push:
+    branches: [main]
+    paths: [server.json]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install mcp-publisher
+        run: |
+          curl -sSL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" | tar xz mcp-publisher
+
+      - name: Validate server.json
+        run: ./mcp-publisher validate
+
+      - name: Publish
+        run: |
+          ./mcp-publisher login github-oidc
+          ./mcp-publisher publish

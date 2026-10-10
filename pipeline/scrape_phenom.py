@@ -171,7 +171,9 @@ def _scrape_site(site: dict) -> list[dict]:
         city = rj.get("city", "")
         state = rj.get("state", "")
         location = f"{city}, {state}" if city and state else city or state or ""
-        company_name = rj.get("companyName", "") or domain.split(".")[0]
+        # Phenom often leaves companyName empty; the subdomain ("careers",
+        # "jobs") is not a name, so use the site's configured name.
+        company_name = rj.get("companyName", "") or site.get("name") or domain.split(".")[-2]
         posted = rj.get("postedDate", "")
         category = rj.get("category", "")
         job_type = rj.get("type", "")

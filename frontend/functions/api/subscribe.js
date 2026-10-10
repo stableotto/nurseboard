@@ -6,6 +6,16 @@ export async function onRequestPost(context) {
     "Content-Type": "application/json",
   };
 
+  // The SUBSCRIBERS KV namespace must be bound to the Pages project
+  // (Settings → Functions → KV namespace bindings).
+  if (!env.SUBSCRIBERS) {
+    console.error(JSON.stringify({ evt: "subscribe_unavailable", reason: "SUBSCRIBERS KV binding missing" }));
+    return new Response(JSON.stringify({ error: "Alerts are temporarily unavailable. Please try again later." }), {
+      status: 503,
+      headers: corsHeaders,
+    });
+  }
+
   try {
     const body = await request.json();
     const { email, role, metro, state, employer } = body;

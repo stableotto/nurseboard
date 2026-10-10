@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import html
 import re
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -38,6 +39,26 @@ USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36
 
 # Regex to extract siteName from CX_CONFIG (JS object literal, not JSON)
 _SITE_NAME_RE = re.compile(r"siteName:\s*'([^']+)'")
+# Newer Candidate Experience pages no longer embed siteName in CX_CONFIG; the
+# page <title> carries the organization name instead.
+_TITLE_RE = re.compile(r"<title>\s*([^<]+?)\s*</title>", re.IGNORECASE)
+# "NemoursCareerSite", "McLeod Careers Section", "UVA Community Health Candidate
+# Experience Site", "FMOL Health Career Portal", "HMC External"
+_PORTAL_SUFFIX_RE = re.compile(
+    r"\s*(?:Candidate\s+Experience(?:\s+Site)?|Careers?\s*(?:Site|Section|Portal)|Staff\s+Positions|External|Careers?)\s*$",
+    re.IGNORECASE,
+)
+_GENERIC_TITLES = {"", "candidate experience", "oracle", "careers", "jobs", "job search", "search jobs", "page not found"}
+
+# Sites whose page title is ambiguous or not the employer's name. Each one was
+# checked against the locations of the site's jobs or the employer site it
+# links to.
+SITE_NAME_OVERRIDES = {
+    "fa-euwp-saasfaprod1.fa.ocs.oraclecloud.com|Mayo-US": "Mayo Clinic",
+    "eppr.fa.us2.oraclecloud.com|CX_2": "Northwell Health",
+    "erou.fa.us2.oraclecloud.com|CX_1": "NorthBay Health",
+    "fa-evlb-saasfaprod1.fa.ocs.oraclecloud.com|CX_1": "Hurley Medical Center",
+}
 
 # Cache: (host, site_number) -> company name
 _SITE_NAME_CACHE: dict[str, str] = {}
@@ -49,12 +70,15 @@ def _fetch_site_name(host: str, site_number: str) -> str:
     if cache_key in _SITE_NAME_CACHE:
         return _SITE_NAME_CACHE[cache_key]
 
+    if cache_key in SITE_NAME_OVERRIDES:
+        return SITE_NAME_OVERRIDES[cache_key]
+
     name = ""
     url = f"https://{host}/hcmUI/CandidateExperience/en/sites/{site_number}/jobs"
     try:
         resp = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=15)
         if resp.status_code == 200:
-            match = _SITE_NAME_RE.search(resp.text)
+            match = _SITE_NAME_RE.search(resp.text) or _TITLE_RE.search(resp.text)
             if match:
                 name = match.group(1).strip()
                 # Clean up JS escape sequences and trailing junk
@@ -66,8 +90,14 @@ def _fetch_site_name(host: str, site_number: str) -> str:
                 cleaned = re.sub(r"\s+Careers?\s*$", "", name, flags=re.IGNORECASE).strip()
                 if len(cleaned) >= 4:
                     name = cleaned
-                # Strip "Careers at " prefix
-                name = re.sub(r"^Careers?\s+at\s+", "", name, flags=re.IGNORECASE).strip()
+                # Strip "Careers at " / "Jobs at " prefix and " | Careers"-style suffixes
+                name = re.sub(r"^(?:Careers?|Jobs?)\s+at\s+", "", name, flags=re.IGNORECASE).strip()
+                name = re.sub(r"\s*[|\-–]\s*(?:Careers?|Jobs?|Job Search|Search Jobs)\s*$", "", name, flags=re.IGNORECASE).strip()
+                name = html.unescape(name)
+                name = _PORTAL_SUFFIX_RE.sub("", name).strip()
+                # Generic Oracle page titles are not organization names.
+                if name.lower() in _GENERIC_TITLES:
+                    name = ""
     except Exception as e:
         logger.debug("[oracle-hcm] Failed to fetch site name for %s/%s: %s", host, site_number, e)
 

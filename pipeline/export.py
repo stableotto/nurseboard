@@ -894,7 +894,8 @@ def _build_job_jsonld(
         },
         "jobLocationType": None,
         "applicantLocationRequirements": None,
-        "directApply": True,
+        # Candidates apply on the employer's site, not on ScrubShifts.
+        "directApply": False,
     }
 
     # Location
