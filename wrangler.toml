@@ -3,9 +3,11 @@ compatibility_date = "2024-09-25"
 pages_build_output_dir = "frontend"
 
 # Bindings for this Pages project are defined here, not in the dashboard.
-# Analytics Engine (binding AGENT_METRICS, dataset scrubshifts_agent_traffic)
-# is used by frontend/_agent.js when present; add it back only after Analytics
-# Engine is enabled for the account, or deploys fail.
+
+# Agent/API/MCP usage counts written by frontend/_agent.js (recordMetric).
+[[analytics_engine_datasets]]
+binding = "AGENT_METRICS"
+dataset = "scrubshifts_agent_traffic"
 
 # Alert signups ("list") and saved-search webhooks ("webhook:<id>", "state:<id>").
 # Created by .github/workflows/cloudflare-setup.yml.
