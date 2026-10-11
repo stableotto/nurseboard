@@ -1,3 +1,9 @@
 name = "scrubshifts"
 compatibility_date = "2024-09-25"
 pages_build_output_dir = "frontend"
+
+# Agent/API/MCP usage counts written by frontend/_agent.js (recordMetric).
+# Bindings for this Pages project are defined here, not in the dashboard.
+[[analytics_engine_datasets]]
+binding = "AGENT_METRICS"
+dataset = "scrubshifts_agent_traffic"
