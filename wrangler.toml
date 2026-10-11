@@ -7,3 +7,9 @@ pages_build_output_dir = "frontend"
 [[analytics_engine_datasets]]
 binding = "AGENT_METRICS"
 dataset = "scrubshifts_agent_traffic"
+
+# Alert signups ("list") and saved-search webhooks ("webhook:<id>", "state:<id>").
+# Created by .github/workflows/cloudflare-setup.yml.
+[[kv_namespaces]]
+binding = "SUBSCRIBERS"
+id = "876b624bb51744038ecbd9c3bbe0c159"
