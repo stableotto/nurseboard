@@ -3,7 +3,7 @@
   "info": {
     "title": "ScrubShifts Healthcare Jobs API",
     "version": "1.0.0",
-    "description": "Live US nursing and allied-health job openings, refreshed daily from employer career sites, with structured role, specialty, setting, schedule, pay and requirement fields. Free, no authentication. Also available as a remote MCP server at https://scrubshifts.com/mcp.",
+    "description": "Live US nursing and allied-health job openings, refreshed daily from employer career sites, with structured role, specialty, setting, schedule, pay and requirement fields. Free, no authentication. Also available as a remote MCP server at https://scrubshifts.com/mcp. Pay is always the employer's posted figure (never estimated); results carry last_verified timestamps; ordering is documented and never paid. API catalog: https://scrubshifts.com/.well-known/api-catalog. Agent skill: https://scrubshifts.com/skills/scrubshifts-jobs/SKILL.md.",
     "contact": {
       "url": "https://scrubshifts.com"
     }
@@ -180,10 +180,11 @@
             "name": "sort",
             "in": "query",
             "required": false,
-            "description": "newest (default), pay, distance (default with near).",
+            "description": "best (default): +2 if pay is listed, -1 per week since posting, -1 per 10 miles; newest; pay; distance (default with near). Ties break by id. No paid placement.",
             "schema": {
               "type": "string",
               "enum": [
+                "best",
                 "newest",
                 "pay",
                 "distance"
@@ -206,6 +207,62 @@
             "description": "Pagination offset (use next_offset).",
             "schema": {
               "type": "integer"
+            }
+          },
+          {
+            "name": "lat",
+            "in": "query",
+            "required": false,
+            "description": "Latitude; with lng, same as near=\"lat,lng\".",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "lng",
+            "in": "query",
+            "required": false,
+            "description": "Longitude.",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "radius_mi",
+            "in": "query",
+            "required": false,
+            "description": "Alias of radius_miles.",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "min_pay_annual",
+            "in": "query",
+            "required": false,
+            "description": "Alias of min_annual.",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "posted_after",
+            "in": "query",
+            "required": false,
+            "description": "Only jobs the employer posted on or after this ISO date/time.",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "first_seen_after",
+            "in": "query",
+            "required": false,
+            "description": "Only jobs that first appeared on ScrubShifts on or after this ISO time. Pass a previous response's data_as_of to poll for new jobs.",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
             }
           }
         ],
@@ -365,6 +422,139 @@
           }
         }
       }
+    },
+    "/api/v1/subscriptions": {
+      "post": {
+        "operationId": "createSavedSearch",
+        "summary": "Save a search and receive new matching jobs by webhook",
+        "description": "After each data refresh, jobs first seen since the last delivery are POSTed to webhook_url as JSON {subscription_id, data_as_of, query, jobs, manage_url}, with header X-ScrubShifts-Signature: sha256=<HMAC-SHA256(secret, raw body)>. Respond 2xx; 10 consecutive failures remove the subscription.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "webhook_url",
+                  "query"
+                ],
+                "properties": {
+                  "webhook_url": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "Public https URL."
+                  },
+                  "query": {
+                    "type": "object",
+                    "description": "Any /api/v1/jobs search parameters, e.g. {\"near\":\"Cerritos, CA\",\"role\":\"rn\",\"specialty\":\"telemetry\",\"shift\":\"nights\"}."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created. Keep the secret.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "secret": {
+                      "type": "string"
+                    },
+                    "query": {
+                      "type": "object"
+                    },
+                    "manage": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid webhook_url or query",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Temporarily unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/subscriptions/{id}": {
+      "get": {
+        "operationId": "getSavedSearch",
+        "summary": "View a saved search",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Subscription-Secret",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Subscription"
+          },
+          "404": {
+            "description": "Not found or wrong secret"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteSavedSearch",
+        "summary": "Cancel a saved search",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Subscription-Secret",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted"
+          },
+          "404": {
+            "description": "Not found or wrong secret"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -391,9 +581,13 @@
           "source": {
             "type": "string",
             "enum": [
-              "employer_listed",
-              "parsed_from_description"
-            ]
+              "employer_posting"
+            ],
+            "description": "Always the employer's own posted figure; never estimated."
+          },
+          "estimated": {
+            "type": "boolean",
+            "const": false
           }
         }
       },
@@ -499,7 +693,8 @@
           },
           "first_seen": {
             "type": "string",
-            "format": "date"
+            "format": "date-time",
+            "description": "When the job first appeared on ScrubShifts (published)."
           },
           "listing_url": {
             "type": "string",
@@ -508,6 +703,36 @@
           "apply_url": {
             "type": "string",
             "format": "uri"
+          },
+          "location_precision": {
+            "type": "string",
+            "enum": [
+              "city",
+              "zip"
+            ],
+            "description": "How exact the coordinates behind distance_miles are."
+          },
+          "last_verified": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the posting was last confirmed open at its source."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active"
+            ]
+          },
+          "sponsored": {
+            "type": "boolean",
+            "description": "Always false today. Sponsored listings, if ever added, are labeled and never reorder results."
+          },
+          "also_listed_as": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Ids of cross-posted copies merged into this result."
           }
         }
       },
@@ -561,6 +786,13 @@
           },
           "attribution": {
             "type": "string"
+          },
+          "policies": {
+            "type": "object",
+            "description": "Freshness, ranking, pay and duplicate policies.",
+            "additionalProperties": {
+              "type": "string"
+            }
           }
         }
       },

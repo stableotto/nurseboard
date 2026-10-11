@@ -1062,6 +1062,42 @@ def _job_detail_html(
 </html>'''
 
 
+def _pay_facts_html(jobs: list[dict], heading: str) -> str:
+    """Visible, citable pay facts for a landing page: median and middle-half
+    posted hourly pay across the page's jobs that list pay (midpoint of each
+    range). Only shown with enough pay data to mean something."""
+    mids = []
+    for j in jobs:
+        try:
+            lo = int(j["salary_min"]) if j.get("salary_min") not in (None, "") else None
+            hi = int(j["salary_max"]) if j.get("salary_max") not in (None, "") else lo
+        except (TypeError, ValueError):
+            continue
+        if lo is None:
+            continue
+        hourly = (lo + (hi or lo)) / 2 / 100 / 2080
+        if 10 <= hourly <= 400:
+            mids.append(hourly)
+    if len(mids) < 5:
+        return ""
+    mids.sort()
+
+    def pct(q):
+        pos = (len(mids) - 1) * q
+        i = int(pos)
+        nxt = mids[min(i + 1, len(mids) - 1)]
+        return mids[i] + (nxt - mids[i]) * (pos - i)
+
+    median = statistics.median(mids)
+    today = datetime.now(timezone.utc).strftime("%B %-d, %Y")
+    return (
+        f'<p class="category-desc pay-facts">Posted pay for {escape(heading)}: '
+        f"<strong>median ${median:,.2f}/hr</strong> (about ${median * 2080:,.0f}/yr); "
+        f"middle half ${pct(0.25):,.2f}–${pct(0.75):,.2f}/hr, from the {len(mids):,} of {len(jobs):,} "
+        f"open jobs that list pay. Updated {today}.</p>"
+    )
+
+
 def _category_page_html(
     heading: str,
     description: str,
@@ -1091,6 +1127,7 @@ def _category_page_html(
         body=f"""    <div class="category-hero">
       <h1>{escape(heading)}</h1>
       <p class="category-desc">{escape(description)}</p>
+      {_pay_facts_html(jobs, heading)}
     </div>
 
     <section class="search-section">
@@ -1565,6 +1602,15 @@ def export_for_frontend(jobs: list[dict], stats: dict):
 
     logger.info("Exported %d jobs to JSON", len(list_jobs))
 
+    # Record first publication so agents can ask for jobs new since a time.
+    # Jobs exported for the first time get this run's timestamp.
+    publish_time = datetime.now(timezone.utc).isoformat()
+    for job in raw_by_id.values():
+        job.setdefault("published_at", None)
+        if not job["published_at"]:
+            job["published_at"] = publish_time
+    _mark_published([j["url"] for j in raw_by_id.values()], publish_time)
+
     # Structured facets (role, specialty, setting, pay, requirements, coords)
     # for agents and for the JSON-LD on each listing.
     # Never let the agent layer stop the site itself from updating: on any
@@ -1634,6 +1680,36 @@ def _build_similar_index(detail_jobs: list[tuple[dict, str, str]]) -> dict:
     return index
 
 
+def _iso_ts(ts) -> str | None:
+    """Comparable UTC timestamp string from the mixed formats stored in the DB."""
+    if not ts:
+        return None
+    try:
+        dt = datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _mark_published(urls: list[str], when: str) -> None:
+    """Persist published_at for newly exported jobs (no-op without the DB,
+    e.g. when exporting from a fixture)."""
+    from pipeline.config import DB_PATH
+    from pipeline.db import get_connection, mark_published
+
+    if not os.path.exists(DB_PATH):
+        return
+    try:
+        conn = get_connection(DB_PATH)
+        mark_published(conn, urls, when)
+        conn.commit()
+        conn.close()
+    except Exception:
+        logger.exception("Could not record published_at")
+
+
 def _load_geo_table(name: str) -> dict:
     path = os.path.join(EXPORT_DIR, name)
     try:
@@ -1655,7 +1731,9 @@ _CITY_STATE_LABEL_RE = re.compile(
 
 
 def _locate(entry: dict, desc_plain: str, cities: dict, zips: dict) -> tuple:
-    """Best-effort (state, [lat, lng]) for a job. ATS location fields are often a
+    """Best-effort (state, [lat, lng], precision) for a job. precision is
+    "city" (city centroid), "zip" (ZIP centroid from a street address) or
+    None when there are no coordinates. ATS location fields are often a
     facility name ("Cleveland Clinic Main Campus"), so fall back to a state +
     ZIP address in the description, and to a bare state name."""
     state = entry.get("state")
@@ -1665,7 +1743,7 @@ def _locate(entry: dict, desc_plain: str, cities: dict, zips: dict) -> tuple:
         city = re.sub(r"^(?:st\.?|saint)\s+", "st. ", city)
         coords = cities.get(f"{city}|{state}") or cities.get(f"{city.replace('st. ', 'saint ', 1)}|{state}")
         if coords:
-            return state, coords
+            return state, coords, "city"
     head = (desc_plain or "")[:3000]
     for m in _CITY_STATE_LABEL_RE.finditer(head):
         st = m.group(2) if m.group(2) in _US_STATES else _FULL_STATE_NAMES.get(m.group(2))
@@ -1673,14 +1751,14 @@ def _locate(entry: dict, desc_plain: str, cities: dict, zips: dict) -> tuple:
             city = re.sub(r"^(?:st\.?|saint)\s+", "st. ", m.group(1).strip().lower())
             coords = cities.get(f"{city}|{st}")
             if coords:
-                return st, coords
+                return st, coords, "city"
     for m in _ADDRESS_ZIP_RE.finditer(head):
         st, code = m.group(1), m.group(2)
         if st in _US_STATES and (state is None or st == state) and code in zips:
-            return st, zips[code]
+            return st, zips[code], "zip"
     if not state and loc in _FULL_STATE_NAMES:
-        return _FULL_STATE_NAMES[loc], None
-    return state, None
+        return _FULL_STATE_NAMES[loc], None, None
+    return state, None, None
 
 
 def _build_agent_records(
@@ -1740,20 +1818,26 @@ def _agent_record(entry: dict, desc_html: str, job_url: str, raw_by_id: dict, ge
         entry.get("location"),
         entry.get("shift"),
     )
-    listed = job.get("salary_min") is not None or job.get("salary_max") is not None
-    pay = normalize_pay(
-        entry.get("salary_min"),
-        entry.get("salary_max"),
-        "listed" if listed else "description",
-    )
-    state, coords = _locate(entry, desc_plain, *geo)
+    # All pay comes from the employer's own posting (an ATS pay field or the
+    # range written in the description); we never estimate it.
+    pay = normalize_pay(entry.get("salary_min"), entry.get("salary_max"), "employer_posting")
+    state, coords, precision = _locate(entry, desc_plain, *geo)
     if state and not entry.get("state"):
         entry = {**entry, "state": state}
+    # When the posting was last confirmed open at its source: the upstream
+    # feed's own scrape time for feed jobs (our ingest time would overstate
+    # it), our direct-scrape time otherwise, or our live check, whichever is
+    # latest.
+    seen_at_source = job.get("upstream_scraped_at") or job.get("last_seen_at") or job.get("enriched_at")
     last_verified = max(
-        filter(None, [job.get("upstream_scraped_at"), job.get("enriched_at")]),
+        (t for t in (_iso_ts(seen_at_source), _iso_ts(job.get("last_checked_at"))) if t),
         default=None,
     )
-    return build_record(entry, facets, pay, job_url, coords, last_verified)
+    rec = build_record({**entry, "first_seen_at": job.get("published_at") or entry.get("first_seen_at")},
+                       facets, pay, job_url, coords, last_verified)
+    if precision:
+        rec["location_precision"] = precision
+    return rec
 
 
 def _generate_job_detail_pages(

@@ -1,12 +1,13 @@
 """Pipeline entry point."""
 
 import logging
+import os
 import sys
 
 from pipeline.config import DB_PATH
 from pipeline.db import (
     get_connection, get_exportable_jobs, get_stats,
-    mark_removed, upsert_job, delete_unenriched, save_enrichment,
+    mark_removed, upsert_job, delete_unenriched, save_enrichment, REMOVAL_REFUSED,
 )
 from pipeline.download import download_upstream_jobs
 from pipeline.enrich import enrich_all
@@ -26,12 +27,22 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+DEGRADED_MARKER = "data/pipeline_degraded.txt"
+
 
 def main():
     logger.info("Starting healthcare job pipeline")
 
-    # 1. Download upstream jobs
-    all_jobs = download_upstream_jobs()
+    # 1. Download upstream jobs. If the upstream feed is down, keep going with
+    # our own scrapers rather than failing the run (and leaving the whole site
+    # stale); removals are skipped below so upstream jobs aren't dropped.
+    upstream_ok = True
+    try:
+        all_jobs = download_upstream_jobs()
+    except Exception:
+        logger.exception("Upstream download failed; continuing with direct scrapers only")
+        all_jobs = []
+        upstream_ok = False
 
     # 2. Filter for healthcare jobs (nursing + allied health)
     healthcare_jobs = filter_healthcare_jobs(all_jobs)
@@ -128,10 +139,23 @@ def main():
     for ats, count in sorted(new_by_ats.items(), key=lambda x: -x[1]):
         logger.info("    %s: %d new", ats, count)
 
-    # 4. Mark removed jobs
-    removed = mark_removed(conn, current_urls)
-    conn.commit()
-    logger.info("  Removed from upstream: %d", removed)
+    # 4. Mark removed jobs (only when every source answered; otherwise the
+    # missing source's jobs would all look closed)
+    degraded_reason = None
+    if upstream_ok:
+        removed = mark_removed(conn, current_urls)
+        conn.commit()
+        if removed == REMOVAL_REFUSED:
+            removed = 0
+            degraded_reason = (
+                "Removals refused: over 30% of live jobs were missing from this run's sources, "
+                "so a source probably failed. Check the run log; removals resume when sources recover."
+            )
+        logger.info("  Removed from upstream: %d", removed)
+    else:
+        removed = 0
+        degraded_reason = "Upstream job feed download failed; ran on direct scrapers only and skipped removals."
+        logger.warning("  Skipped removals: upstream feed unavailable this run")
 
     # 5. Enrich only new/unenriched jobs
     logger.info("=== Enrichment ===")
@@ -209,6 +233,13 @@ def main():
     exportable = get_exportable_jobs(conn)
     stats = get_stats(conn)
     export_for_frontend(exportable, stats)
+
+    # A degraded run still deploys (fresh data from the direct scrapers beats a
+    # stale site) but leaves a marker the workflow turns into an issue.
+    if degraded_reason:
+        os.makedirs("data", exist_ok=True)
+        with open(DEGRADED_MARKER, "w") as f:
+            f.write(degraded_reason + "\n")
 
     # Summary
     logger.info("=== Daily Summary ===")

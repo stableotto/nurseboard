@@ -99,12 +99,15 @@ def check_freshness(db_path: str) -> dict:
     """
     conn = get_connection(db_path)
 
-    # Get the oldest enriched jobs (by enriched_at) that haven't been removed
+    # The jobs we checked longest ago (never-checked first). Live jobs get
+    # last_checked_at stamped below, so each run moves on to the next batch.
+    # This is our own check at the employer's site, separate from appearing in
+    # a feed (last_seen_at), which every scrape re-stamps.
     rows = conn.execute(
         """SELECT url, ats_platform FROM jobs
         WHERE enriched_at IS NOT NULL
           AND removed_at IS NULL
-        ORDER BY enriched_at ASC
+        ORDER BY last_checked_at IS NOT NULL, last_checked_at ASC, enriched_at ASC
         LIMIT ?""",
         (BATCH_SIZE,),
     ).fetchall()
@@ -116,12 +119,17 @@ def check_freshness(db_path: str) -> dict:
     logger.info("[freshness] Checking %d oldest enriched jobs", len(jobs))
 
     dead_urls = []
+    live_urls = []
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         futures = {executor.submit(_check_url, url, ats): url for url, ats in jobs}
         for future in as_completed(futures):
             url, alive = future.result()
-            if not alive:
-                dead_urls.append(url)
+            (live_urls if alive else dead_urls).append(url)
+
+    if live_urls:
+        seen = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        conn.executemany("UPDATE jobs SET last_checked_at = ? WHERE url = ?", [(seen, u) for u in live_urls])
+        conn.commit()
 
     if dead_urls:
         now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())

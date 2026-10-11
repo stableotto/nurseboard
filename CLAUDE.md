@@ -52,6 +52,12 @@ Structured job data for agents is a first-class output, not a side feature.
 - **Geo**: city/ZIP coordinates come from Census gazetteer files (`_download_geo_tables` in export.py); the postal CSV only supplies city names.
 - When adding a role or specialty, update the regexes *and* the aliases in `classify.py`; the API vocabulary comes from there.
 - `pipeline/indexnow.py` pings Bing & co. after deploy. The key file `frontend/<key>.txt` must stay deployed.
+- **Trust layer (published in API `policies`, llms.txt, SKILL.md):** pay is always the employer's posted figure (`pay.source: employer_posting`, never estimated); ordering is only the documented sort (`best` = +2 listed pay, −1/week old, −1/10 mi; ties by id), `sponsored` is always false; cross-posted copies are merged (`dedupe_records`, only across different employer names).
+- **Freshness columns:** `last_seen_at` = last confirmed open (scrape or freshness check) → API `last_verified`; `published_at` = first exported → API `first_seen` (what `first_seen_after` polling and webhooks key on). `mark_removed` refuses to drop >30% of live jobs in one run; an upstream failure skips removals and leaves `data/pipeline_degraded.txt` (→ issue).
+- **Saved searches:** `POST /api/v1/subscriptions` (KV `SUBSCRIBERS`, keys `webhook:<id>`); `pipeline/notify_subscriptions.py` delivers after each deploy via the live search API, HMAC-signed.
+- **Metrics:** `recordMetric` in `_agent.js` writes to Analytics Engine (`AGENT_METRICS`, dataset `scrubshifts_agent_traffic`); `agent-traffic.yml` posts a weekly report issue.
+- **Bindings live in `wrangler.toml`**, not the Cloudflare dashboard (a Pages project with a wrangler.toml ignores dashboard bindings). Code must tolerate a missing binding.
+- Discovery: `/.well-known/api-catalog` (RFC 9727, served by the worker), `frontend/skills/scrubshifts-jobs/SKILL.md`.
 
 ## Key Constants
 - Salary stored in **cents** (INTEGER). $50K/yr = 5000000
@@ -69,6 +75,9 @@ Workable, NeoGov (exist but disabled)
 - `rollback.yml` — manual rollback to previous Cloudflare deployment
 - `keepalive.yml` — monthly commit so GitHub doesn't disable the schedules after 60 days of inactivity
 - Scheduled failures of the pipeline/enrich workflows open a `pipeline-failure` issue
+- `publish-mcp.yml` — publishes `server.json` to the MCP registry (GitHub OIDC) when it changes on main
+- `cloudflare-setup.yml` — manual: creates the SUBSCRIBERS KV namespace and checks token permissions
+- `agent-traffic.yml` — weekly agent usage report (Analytics Engine)
 
 ## Secrets (GitHub Actions)
 CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, USAJOBS_API_KEY, USAJOBS_EMAIL

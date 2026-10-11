@@ -25,11 +25,28 @@ const ATTRIBUTION =
   "Job data from ScrubShifts (scrubshifts.com), refreshed daily from employer career sites. " +
   "When showing a job, link its listing_url; apply_url goes straight to the employer.";
 
+// Published guarantees, returned with search results and the API index.
+const POLICIES = {
+  freshness:
+    "Every job is re-read from the employer's career site at least daily. A job that leaves its source is " +
+    "removed from results, usually within a day, and a rotating live check re-confirms open postings. " +
+    "last_verified is when the posting was last confirmed open; data_as_of is when this data set was built.",
+  ranking:
+    "Results are ordered only by the requested sort: best (+2 for listed pay, -1 per week since posting, " +
+    "-1 per 10 miles), newest, pay, or distance, with ties broken by job id. There is no paid placement; " +
+    "if sponsored listings are ever added they will carry sponsored: true and never change this ordering.",
+  pay:
+    "Pay is the employer's own posted figure (ATS pay field or the range in the posting) and is never " +
+    "estimated. Jobs without posted pay have no pay field. Annual = hourly x 2080.",
+  duplicates:
+    "Cross-posted copies of one job are merged into one result; also_listed_as lists the merged ids.",
+};
+
 const CORS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
   "Access-Control-Allow-Headers":
-    "Content-Type, Accept, Authorization, Mcp-Session-Id, Mcp-Protocol-Version",
+    "Content-Type, Accept, Authorization, Mcp-Session-Id, Mcp-Protocol-Version, X-Subscription-Secret",
   "Access-Control-Expose-Headers": "Mcp-Session-Id",
 };
 
@@ -110,7 +127,9 @@ const SHIFT_ALIASES = {
   weekends: ["weekends", "weekend", "weekend only", "baylor"],
   prn: ["prn"],
 };
-const SORTS = ["newest", "pay", "distance"];
+// Documented, deterministic orderings. No paid placement exists or affects
+// any of them; ties always break by job id.
+const SORTS = ["best", "newest", "pay", "distance"];
 
 function norm(s) {
   return String(s || "")
@@ -212,13 +231,17 @@ function parseQuery(input, index) {
     q.state = resolveState(st);
     if (!q.state) errors.push(`Unknown state "${st}". Use a two-letter code like CO.`);
   }
-  const near = get("near") || get("location");
+  let near = get("near") || get("location");
+  // lat/lng as separate parameters are equivalent to near="lat,lng".
+  const lat = toNum(get("lat"));
+  const lng = toNum(get("lng") ?? get("lon"));
+  if (!near && lat != null && lng != null) near = `${lat},${lng}`;
   if (near) q.near = String(near).slice(0, 100);
-  const radius = toNum(get("radius_miles"));
+  const radius = toNum(get("radius_miles") ?? get("radius_mi"));
   q.radius_miles = Math.min(Math.max(radius || DEFAULT_RADIUS, 1), MAX_RADIUS);
 
   q.min_hourly = toNum(get("min_hourly"));
-  const minAnnual = toNum(get("min_annual"));
+  const minAnnual = toNum(get("min_annual") ?? get("min_pay_annual"));
   if (minAnnual != null) q.min_annual = minAnnual;
   q.has_pay = toBool(get("has_pay"));
   q.new_grad = toBool(get("new_grad"));
@@ -228,6 +251,16 @@ function parseQuery(input, index) {
   if (maxYears != null) q.max_years_experience = maxYears;
   const within = toNum(get("posted_within_days"));
   if (within != null) q.posted_within_days = Math.max(1, Math.min(within, 365));
+  // Polling: posted_after filters on the employer's posting date;
+  // first_seen_after on when ScrubShifts first saw the job (use the previous
+  // response's data_as_of to get only jobs that are new since then).
+  for (const key of ["posted_after", "first_seen_after"]) {
+    const v = get(key);
+    if (v == null || v === "") continue;
+    const t = Date.parse(String(v));
+    if (Number.isNaN(t)) errors.push(`${key} must be an ISO date or timestamp, e.g. 2026-10-01 or 2026-10-01T00:00:00Z.`);
+    else q[key] = new Date(t).toISOString();
+  }
 
   const sort = norm(get("sort"));
   if (sort && !SORTS.includes(sort)) errors.push(`sort must be one of ${SORTS.join(", ")}.`);
@@ -409,7 +442,10 @@ function publicJob(job, labels, distance) {
           annual_min: job.hourly_min != null ? Math.round(job.hourly_min * 2080) : undefined,
           annual_max: job.hourly_max != null ? Math.round(job.hourly_max * 2080) : undefined,
           display: formatPay(job),
-          source: job.pay_source === "listed" ? "employer_listed" : "parsed_from_description",
+          // Always the employer's own posted figure (an ATS pay field or the
+          // range in the posting text). Never estimated by ScrubShifts.
+          source: "employer_posting",
+          estimated: false,
         }
       : undefined,
     sign_on_bonus_usd: job.sign_on_bonus,
@@ -420,13 +456,28 @@ function publicJob(job, labels, distance) {
       new_grad_ok: job.new_grad_ok,
       bsn: job.bsn,
     },
+    location_precision: job.location_precision,
     posted_date: job.posted_date,
     first_seen: job.first_seen,
+    last_verified: job.last_verified,
+    status: "active",
+    sponsored: false,
+    also_listed_as: job.duplicate_ids,
     listing_url: job.slug ? `${SITE}/listing/${job.slug}/` : undefined,
     apply_url: job.apply_url,
   };
   if (Object.values(out.requirements).every((v) => v === undefined)) delete out.requirements;
   return JSON.parse(JSON.stringify(out));
+}
+
+// sort=best, published in the API docs: 2 points for listed pay, minus 1 point
+// per week since posting (or first seen), minus 1 point per 10 miles away.
+function bestScore(hit, now) {
+  const job = hit.job;
+  const d = Date.parse(job.posted_date || job.first_seen || "") || now;
+  let score = (job.hourly_min != null ? 2 : 0) - Math.max(0, now - d) / (7 * 86400000);
+  if (hit.dist != null) score -= hit.dist / 10;
+  return score;
 }
 
 function matches(job, q, now) {
@@ -444,6 +495,10 @@ function matches(job, q, now) {
   if (q.compact_license && !job.compact_license) return false;
   if (q.max_years_experience != null && job.min_years_experience != null &&
       job.min_years_experience > q.max_years_experience) return false;
+  if (q.posted_after && !(job.posted_date && Date.parse(job.posted_date) >= Date.parse(q.posted_after))) return false;
+  // Strictly after, so passing a previous data_as_of never returns that
+  // data set's jobs again.
+  if (q.first_seen_after && !(job.first_seen && Date.parse(job.first_seen) > Date.parse(q.first_seen_after))) return false;
   if (q.posted_within_days != null) {
     const d = job.posted_date || job.first_seen;
     if (!d || now - Date.parse(d) > q.posted_within_days * 86400000) return false;
@@ -466,6 +521,12 @@ function pickShards(q, index, point) {
     return { shards: states.map((s) => `state/${s}`).filter(has), scope: "radius" };
   }
   if (q.state) return { shards: has(`state/${q.state}`) ? [`state/${q.state}`] : [], scope: "state" };
+  // "New since" with no location: the recent shard holds every job published
+  // in its window (index.shards["national/_recent"].since), uncapped.
+  const recent = index.shards["national/_recent"];
+  if (q.first_seen_after && recent && Date.parse(q.first_seen_after) >= Date.parse(recent.since)) {
+    return { shards: ["national/_recent"], scope: "national_recent" };
+  }
   if (q.role && q.role.length > 1 && q.role.length <= 4 && q.role.every((r) => has(`national/${r}`))) {
     return { shards: q.role.map((r) => `national/${r}`), scope: "national" };
   }
@@ -536,17 +597,22 @@ async function searchJobs(env, origin, input) {
     }
   }
 
-  const sort = q.sort || (point ? "distance" : "newest");
+  const sort = q.sort || (point ? "distance" : "best");
   const recency = (h) => h.job.posted_date || h.job.first_seen || "";
-  if (sort === "distance" && point) hits.sort((a, b) => a.dist - b.dist || (recency(b) > recency(a) ? 1 : -1));
-  else if (sort === "pay") hits.sort((a, b) => (b.job.hourly_max ?? -1) - (a.job.hourly_max ?? -1));
-  else hits.sort((a, b) => (recency(b) > recency(a) ? 1 : recency(b) < recency(a) ? -1 : 0));
+  const byRecency = (a, b) => (recency(b) > recency(a) ? 1 : recency(b) < recency(a) ? -1 : 0);
+  const byId = (a, b) => (a.job.id < b.job.id ? -1 : a.job.id > b.job.id ? 1 : 0);
+  if (sort === "distance" && point) hits.sort((a, b) => a.dist - b.dist || byRecency(a, b) || byId(a, b));
+  else if (sort === "pay") hits.sort((a, b) => (b.job.hourly_max ?? -1) - (a.job.hourly_max ?? -1) || byRecency(a, b) || byId(a, b));
+  else if (sort === "newest") hits.sort((a, b) => byRecency(a, b) || byId(a, b));
+  else hits.sort((a, b) => bestScore(b, now) - bestScore(a, now) || byRecency(a, b) || byId(a, b));
 
   const page = hits.slice(q.offset, q.offset + q.limit);
   const notes = [];
   if (truncated) {
     notes.push(
-      "National results are drawn from the newest jobs for this role. Add a state or near= location for complete coverage.",
+      scope === "national_recent"
+        ? "Very many jobs were published in this window; results include the most recently published. Add a state or near= location for complete coverage."
+        : "National results are drawn from the newest jobs for this role. Add a state or near= location for complete coverage.",
     );
   }
   if (point && point.assumed_state) notes.push(`Interpreted location as ${point.label}.`);
@@ -563,6 +629,7 @@ async function searchJobs(env, origin, input) {
     offset: q.offset,
     next_offset: q.offset + page.length < hits.length ? q.offset + page.length : null,
     coverage: { scope, complete: !truncated, notes },
+    policies: POLICIES,
     data_as_of: index.generated_at,
     results: page.map((h) => publicJob(h.job, labels, h.dist)),
     attribution: ATTRIBUTION,
@@ -696,8 +763,10 @@ const SEARCH_PROPS = {
   max_years_experience: { type: "number", description: "The person's years of experience; excludes jobs that state a higher minimum." },
   remote: { type: "boolean", description: "Only remote / telehealth jobs." },
   posted_within_days: { type: "number", description: "Only jobs posted in the last N days." },
+  posted_after: { type: "string", description: "Only jobs the employer posted on or after this ISO date/time." },
+  first_seen_after: { type: "string", description: "Only jobs that first appeared on ScrubShifts on or after this ISO time. For recurring checks, pass the previous response's data_as_of to get just the new jobs." },
   q: { type: "string", description: "Free-text words that must appear in the title, employer or location, e.g. an employer name." },
-  sort: { type: "string", enum: SORTS, description: "newest (default), pay, or distance (default when near is set)." },
+  sort: { type: "string", enum: SORTS, description: "best (default): +2 if pay is listed, -1 per week since posting, -1 per 10 miles. Or newest, pay, distance (default when near is set). No paid placement affects ordering." },
   limit: { type: "number", description: `Results per page, default ${DEFAULT_LIMIT}, max ${MAX_LIMIT}.` },
   offset: { type: "number", description: "Pagination offset; use next_offset from the previous response." },
 };
@@ -884,7 +953,8 @@ async function handleApi(request, env, url, log) {
   const origin = url.origin;
   const path = url.pathname.replace(/\/+$/, "") || "/";
   const params = Object.fromEntries(url.searchParams.entries());
-  log.params = params;
+  const { secret: _ignored, ...loggable } = params;
+  log.params = loggable;
 
   if (path === "/api" || path === "/api/v1") {
     const index = await loadIndex(env, origin);
@@ -893,6 +963,13 @@ async function handleApi(request, env, url, log) {
       description: "Live US nursing and allied-health job openings, refreshed daily. Free, no key required.",
       data_as_of: index && index.generated_at,
       total_jobs: index && index.total_jobs,
+      coverage: index && {
+        jobs_with_posted_pay: index.jobs_with_pay,
+        jobs_with_coordinates: index.jobs_with_coords,
+        duplicates_merged: index.duplicates_merged,
+        states: Object.keys(index.state_counts || {}).length,
+      },
+      policies: POLICIES,
       endpoints: {
         search: `${SITE}/api/v1/jobs?near=Denver,CO&role=rn&specialty=icu&shift=nights&min_hourly=50`,
         job: `${SITE}/api/v1/jobs/{id}`,
@@ -901,6 +978,9 @@ async function handleApi(request, env, url, log) {
         bulk: `${SITE}/data/agent/jobs.ndjson.gz`,
         openapi: `${SITE}/openapi.json`,
         mcp: `${SITE}/mcp`,
+        skill: `${SITE}/skills/scrubshifts-jobs/SKILL.md`,
+        api_catalog: `${SITE}/.well-known/api-catalog`,
+        saved_search: `POST ${SITE}/api/v1/subscriptions {"webhook_url": "https://...", "query": {"near": "Cerritos, CA", "role": "rn", "specialty": "telemetry", "shift": "nights"}}`,
       },
       attribution: ATTRIBUTION,
     });
@@ -923,6 +1003,15 @@ async function handleApi(request, env, url, log) {
   if (path === "/api/v1/pay") {
     const out = await payBenchmarks(env, origin, params);
     return json(out, out.error ? 400 : 200);
+  }
+  if (path === "/api/v1/subscriptions") {
+    if (request.method !== "POST") return json({ error: "POST a saved search here." }, 405, { Allow: "POST, OPTIONS" });
+    return createSubscription(request, env, origin);
+  }
+  const sm = path.match(/^\/api\/v1\/subscriptions\/([0-9a-f]{24})$/);
+  if (sm) {
+    if (!["GET", "DELETE"].includes(request.method)) return json({ error: "Use GET or DELETE." }, 405, { Allow: "GET, DELETE, OPTIONS" });
+    return subscriptionById(request, env, sm[1]);
   }
   if (path === "/api/v1/taxonomy") {
     const out = await listFilters(env, origin);
@@ -955,8 +1044,213 @@ export function aiAgentFamily(ua) {
   return null;
 }
 
+// Durable usage counts in Workers Analytics Engine (binding AGENT_METRICS in
+// wrangler.toml). One data point per request; a no-op without the binding.
+// blobs: kind, path, detail (MCP tool / method), AI family, status, query
+// summary (role/specialty/state only — never free text or locations).
+export function recordMetric(env, m) {
+  try {
+    if (!env || !env.AGENT_METRICS) return;
+    const q = m.query || {};
+    const summary = ["role", "specialty", "state", "shift", "employment_type"]
+      .filter((k) => q[k])
+      .map((k) => `${k}=${String(q[k]).slice(0, 40)}`)
+      .join("&");
+    env.AGENT_METRICS.writeDataPoint({
+      indexes: [m.kind],
+      blobs: [m.kind, m.path.slice(0, 100), m.detail.slice(0, 100), m.family, String(m.status), summary],
+      doubles: [1],
+    });
+  } catch {
+    // Metrics must never break a response.
+  }
+}
+
 export function isAgentPath(pathname) {
-  return pathname === "/mcp" || pathname === "/api" || pathname === "/api/v1" || pathname.startsWith("/api/v1/");
+  return (
+    pathname === "/mcp" ||
+    pathname === "/api" ||
+    pathname === "/api/v1" ||
+    pathname.startsWith("/api/v1/") ||
+    pathname === "/.well-known/api-catalog"
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Saved searches with webhooks. Stored in the SUBSCRIBERS KV namespace under
+// "webhook:<id>". After each data refresh, pipeline/notify_subscriptions.py
+// runs every saved search with first_seen_after = last notification time and
+// POSTs new jobs to the webhook, signed with HMAC-SHA256 using the secret
+// returned at creation (header X-ScrubShifts-Signature: sha256=<hex>).
+// ---------------------------------------------------------------------------
+
+const MAX_SUBSCRIPTIONS = 1000;
+const CREATES_PER_IP_PER_DAY = 5;
+const SUBSCRIPTION_TTL_DAYS = 90;
+// Search keys a saved search keeps, in their canonical (parsed) form.
+const SAVED_KEYS = [
+  "role", "specialty", "setting", "employment_type", "shift", "q", "state", "near",
+  "radius_miles", "min_hourly", "min_annual", "has_pay", "new_grad", "compact_license",
+  "remote", "max_years_experience",
+];
+
+// Webhook hosts must be DNS names. IP literals (v4 or v6, any notation) and
+// internal names are refused here; the notifier also re-checks the resolved
+// address before every delivery.
+function badWebhookHost(hostname) {
+  const h = hostname.toLowerCase();
+  if (h.startsWith("[") || h.includes(":")) return true; // IPv6 literal
+  if (/^[0-9.]+$/.test(h) || /^0x/i.test(h)) return true; // IPv4 literal / hex
+  if (!h.includes(".")) return true;
+  return /(^|\.)(localhost|local|internal|intranet|lan|home|corp|localdomain)$/.test(h);
+}
+
+function randomHex(bytes) {
+  const a = new Uint8Array(bytes);
+  crypto.getRandomValues(a);
+  return [...a].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+// Saved query: the parsed, normalized search (aliases resolved, lists as
+// comma-separated strings) so delivery runs exactly the search that was asked.
+function savedQuery(q) {
+  const out = {};
+  for (const k of SAVED_KEYS) {
+    if (q[k] == null) continue;
+    out[k] = Array.isArray(q[k]) ? q[k].join(",") : q[k];
+  }
+  if (!out.near) delete out.radius_miles;
+  return out;
+}
+
+async function createSubscription(request, env, origin) {
+  if (!env.SUBSCRIBERS) return json({ error: "Saved searches are temporarily unavailable." }, 503);
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: "Body must be JSON: {\"webhook_url\": \"https://...\", \"query\": {search parameters}}" }, 400);
+  }
+  let hookUrl;
+  try {
+    hookUrl = new URL(String((body && body.webhook_url) || ""));
+  } catch {
+    return json({ error: "webhook_url must be an https URL." }, 400);
+  }
+  if (hookUrl.protocol !== "https:" || hookUrl.username || hookUrl.password || badWebhookHost(hookUrl.hostname)) {
+    return json({ error: "webhook_url must be a public https URL with a DNS host name." }, 400);
+  }
+  const index = await loadIndex(env, origin);
+  if (!index) return json({ error: "Job data is temporarily unavailable." }, 503);
+  const { q, errors } = parseQuery((body && body.query) || {}, index);
+  if (errors.length) return json({ error: errors.join(" ") }, 400);
+  if (q.near && !q.remote && !(await geocode(env, origin, q.near, index))) {
+    return json({ error: `Could not locate "${q.near}". Use "City, ST", a 5-digit ZIP, or "lat,lng".` }, 400);
+  }
+
+  // Abuse limits: a few creations per IP per day, and a global cap tracked in
+  // one counter key (approximate under KV's eventual consistency, which is fine
+  // for a cap). Subscriptions expire after SUBSCRIPTION_TTL_DAYS.
+  const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+  const day = new Date().toISOString().slice(0, 10);
+  const rlKey = `rl:${ip}:${day}`;
+  const used = Number((await env.SUBSCRIBERS.get(rlKey)) || 0);
+  if (used >= CREATES_PER_IP_PER_DAY) {
+    return json({ error: "Too many saved searches created today. Poll with first_seen_after instead." }, 429);
+  }
+  const count = Number((await env.SUBSCRIBERS.get("meta:webhook_count")) || 0);
+  if (count >= MAX_SUBSCRIPTIONS) {
+    return json({ error: "Saved-search capacity is full right now. Poll with first_seen_after instead." }, 503);
+  }
+
+  const id = randomHex(12);
+  const secret = randomHex(24);
+  const ttl = SUBSCRIPTION_TTL_DAYS * 86400;
+  const sub = {
+    id,
+    webhook_url: hookUrl.toString(),
+    query: savedQuery(q),
+    secret,
+    created_at: new Date().toISOString(),
+    expires_at: new Date(Date.now() + ttl * 1000).toISOString(),
+    // Delivery starts with jobs published after the current data set.
+    start_after: index.generated_at,
+  };
+  await env.SUBSCRIBERS.put(`webhook:${id}`, JSON.stringify(sub), { expirationTtl: ttl });
+  await env.SUBSCRIBERS.put(rlKey, String(used + 1), { expirationTtl: 2 * 86400 });
+  await env.SUBSCRIBERS.put("meta:webhook_count", String(count + 1));
+  return json(
+    {
+      id,
+      secret,
+      query: sub.query,
+      webhook_url: sub.webhook_url,
+      expires_at: sub.expires_at,
+      delivery:
+        "After each data refresh (several times a day), new matching jobs are POSTed as JSON " +
+        "{subscription_id, data_as_of, jobs:[...]} with header X-ScrubShifts-Signature: sha256=HMAC_SHA256(secret, body). " +
+        "Respond 2xx; 10 consecutive failures remove the subscription. Create it again to renew after expires_at.",
+      manage: `${SITE}/api/v1/subscriptions/${id}`,
+      note: "Keep the secret: it verifies deliveries and is required (header X-Subscription-Secret) to view or delete this subscription.",
+    },
+    201,
+    { "Cache-Control": "no-store" },
+  );
+}
+
+async function subscriptionById(request, env, id) {
+  if (!env.SUBSCRIBERS) return json({ error: "Saved searches are temporarily unavailable." }, 503);
+  const raw = await env.SUBSCRIBERS.get(`webhook:${id}`);
+  const sub = raw && JSON.parse(raw);
+  const given = request.headers.get("X-Subscription-Secret");
+  if (!sub || !given || given !== sub.secret) {
+    return json({ error: "Not found." }, 404, { "Cache-Control": "no-store" });
+  }
+  if (request.method === "DELETE") {
+    await env.SUBSCRIBERS.delete(`webhook:${id}`);
+    await env.SUBSCRIBERS.delete(`state:${id}`);
+    const count = Number((await env.SUBSCRIBERS.get("meta:webhook_count")) || 0);
+    await env.SUBSCRIBERS.put("meta:webhook_count", String(Math.max(0, count - 1)));
+    return json({ deleted: true, id }, 200, { "Cache-Control": "no-store" });
+  }
+  const { secret, ...visible } = sub;
+  const state = await env.SUBSCRIBERS.get(`state:${id}`);
+  return json({ ...visible, delivery_state: state ? JSON.parse(state) : null }, 200, { "Cache-Control": "no-store" });
+}
+
+// RFC 9727 API catalog: a linkset pointing at the API's description and docs.
+function apiCatalog(request) {
+  const body = {
+    linkset: [
+      {
+        anchor: `${SITE}/api/v1`,
+        "service-desc": [{ href: `${SITE}/openapi.json`, type: "application/openapi+json" }],
+        "service-doc": [
+          { href: `${SITE}/llms.txt`, type: "text/plain" },
+          { href: `${SITE}/skills/scrubshifts-jobs/SKILL.md`, type: "text/markdown" },
+        ],
+        "service-meta": [{ href: `${SITE}/api/v1`, type: "application/json" }],
+      },
+      {
+        anchor: `${SITE}/mcp`,
+        "service-doc": [{ href: `${SITE}/skills/scrubshifts-jobs/SKILL.md`, type: "text/markdown" }],
+        "service-meta": [
+          {
+            href: "https://registry.modelcontextprotocol.io/v0/servers?search=io.github.stableotto/scrubshifts",
+            type: "application/json",
+          },
+        ],
+      },
+    ],
+  };
+  const headers = {
+    "Content-Type": 'application/linkset+json; profile="https://www.rfc-editor.org/info/rfc9727"',
+    "Cache-Control": "public, max-age=3600",
+    Link: `<${SITE}/.well-known/api-catalog>; rel="api-catalog"`,
+    ...CORS,
+  };
+  if (request.method === "HEAD") return new Response(null, { status: 200, headers });
+  return new Response(JSON.stringify(body, null, 2), { status: 200, headers });
 }
 
 export async function handleAgentRequest(request, env) {
@@ -969,6 +1263,8 @@ export async function handleAgentRequest(request, env) {
   try {
     if (request.method === "OPTIONS") {
       resp = new Response(null, { status: 204, headers: CORS });
+    } else if (url.pathname === "/.well-known/api-catalog") {
+      resp = apiCatalog(request);
     } else if (url.pathname === "/mcp") {
       resp = await handleMcp(request, env, url.origin, log);
     } else {
@@ -980,6 +1276,14 @@ export async function handleAgentRequest(request, env) {
   }
   log.status = resp.status;
   console.log(JSON.stringify(log));
+  recordMetric(env, {
+    kind: url.pathname === "/mcp" ? "mcp" : "api",
+    path: url.pathname,
+    detail: log.tool || (log.rpc || []).join(",") || "",
+    family: log.ai || "",
+    status: resp.status,
+    query: log.params || log.args,
+  });
   return resp;
 }
 

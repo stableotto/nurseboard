@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import sqlite3
 from datetime import datetime, timedelta, timezone
@@ -12,6 +13,8 @@ from pipeline.config import (
     MAX_ENRICH_FAILURES,
     UNENRICHED_GRACE_DAYS,
 )
+
+logger = logging.getLogger(__name__)
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS jobs (
@@ -64,6 +67,26 @@ def get_connection(db_path: str) -> sqlite3.Connection:
             conn.execute("ALTER TABLE jobs ADD COLUMN bonus INTEGER")
         except sqlite3.OperationalError:
             pass  # Another connection already added it
+    # When the job was last confirmed open at its source (seen in a scrape or
+    # passed a freshness check). Published to agents as last_verified.
+    # When the job first appeared in the exported site/API data. Agents poll
+    # for "new" jobs by this, not first_seen_at: a job can be scraped days
+    # before its details are fetched and it is published.
+    for col in ("published_at", "last_seen_at", "last_checked_at"):
+        if col not in cols:
+            try:
+                conn.execute(f"ALTER TABLE jobs ADD COLUMN {col} TEXT")
+            except sqlite3.OperationalError:
+                pass  # Another connection already added it
+    # Backfill published_at once (when no job has one yet), approximating with
+    # the enrich time, so the first export after the migration doesn't present
+    # the whole catalog as new. Runs again on the next start if it fails.
+    if conn.execute("SELECT 1 FROM jobs WHERE published_at IS NOT NULL LIMIT 1").fetchone() is None:
+        conn.execute(
+            "UPDATE jobs SET published_at = COALESCE(enriched_at, first_seen_at) "
+            "WHERE published_at IS NULL AND enriched_at IS NOT NULL"
+        )
+        conn.commit()
 
     return conn
 
@@ -96,7 +119,7 @@ def upsert_job(conn: sqlite3.Connection, job: dict) -> bool:
             """UPDATE jobs SET
                 title = ?, company_name = ?, location = ?, skill_level = ?,
                 departments = ?, is_recruiter = ?, removed_at = NULL,
-                upstream_scraped_at = ?, updated_at = ?
+                upstream_scraped_at = ?, updated_at = ?, last_seen_at = ?
             WHERE url = ?""",
             (
                 job["title"],
@@ -107,6 +130,7 @@ def upsert_job(conn: sqlite3.Connection, job: dict) -> bool:
                 1 if job.get("is_recruiter") else 0,
                 scraped_at,
                 now,
+                now,
                 job["url"],
             ),
         )
@@ -115,8 +139,8 @@ def upsert_job(conn: sqlite3.Connection, job: dict) -> bool:
         conn.execute(
             """INSERT INTO jobs (url, title, company_slug, company_name, location,
                 ats_platform, skill_level, departments, is_recruiter,
-                first_seen_at, upstream_scraped_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                first_seen_at, upstream_scraped_at, last_seen_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 job["url"],
                 job["title"],
@@ -129,6 +153,7 @@ def upsert_job(conn: sqlite3.Connection, job: dict) -> bool:
                 1 if job.get("is_recruiter") else 0,
                 now,
                 scraped_at,
+                now,
             ),
         )
         return True
@@ -213,11 +238,28 @@ def delete_unenriched(conn: sqlite3.Connection) -> int:
     return deleted
 
 
+# Refuse to remove more than this share of live jobs in one run. A source
+# that fails quietly (empty feed, changed URL) otherwise looks like every one
+# of its jobs closing at once, which would empty the site.
+MAX_REMOVED_FRACTION = 0.3
+# mark_removed() return value when it refuses (callers flag the run degraded).
+REMOVAL_REFUSED = -1
+
+
 def mark_removed(conn: sqlite3.Connection, current_urls: set[str]):
     """Mark jobs not in current_urls as removed."""
     now = datetime.now(timezone.utc).isoformat()
     all_urls = {r["url"] for r in conn.execute("SELECT url FROM jobs WHERE removed_at IS NULL").fetchall()}
     removed = all_urls - current_urls
+    if all_urls and len(removed) > MAX_REMOVED_FRACTION * len(all_urls):
+        logger.error(
+            "Refusing to mark %d of %d live jobs removed in one run (limit %.0f%%); "
+            "a source probably failed. Freshness checks still remove dead jobs individually.",
+            len(removed),
+            len(all_urls),
+            MAX_REMOVED_FRACTION * 100,
+        )
+        return REMOVAL_REFUSED
     if removed:
         conn.executemany(
             "UPDATE jobs SET removed_at = ?, updated_at = ? WHERE url = ?",
@@ -247,7 +289,7 @@ def get_exportable_jobs(conn: sqlite3.Connection) -> list[dict]:
             ats_platform, skill_level, departments, is_recruiter,
             posted_date, salary_min, salary_max, salary_currency, bonus,
             description_html, description_plain, first_seen_at,
-            enriched_at, upstream_scraped_at
+            enriched_at, upstream_scraped_at, last_seen_at, published_at, last_checked_at
         FROM jobs
         WHERE removed_at IS NULL
           AND enriched_at IS NOT NULL
@@ -270,3 +312,12 @@ def get_stats(conn: sqlite3.Connection) -> dict:
     ).fetchall():
         by_ats[row["ats_platform"]] = row["cnt"]
     return {"total": total, "enriched": enriched, "by_ats": by_ats}
+
+
+def mark_published(conn: sqlite3.Connection, urls: list[str], when: str) -> int:
+    """Stamp published_at on jobs exported for the first time."""
+    conn.executemany(
+        "UPDATE jobs SET published_at = ? WHERE url = ? AND published_at IS NULL",
+        [(when, u) for u in urls],
+    )
+    return conn.total_changes

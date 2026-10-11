@@ -1,0 +1,45 @@
+name: Agent traffic report
+
+# Weekly counts of AI-agent usage from Workers Analytics Engine (written by
+# frontend/_agent.js): API and MCP calls by AI family, MCP tools, the most
+# requested roles/specialties/states, and AI crawler page fetches. Posted to
+# the run summary and to one rolling "Agent traffic" issue.
+
+on:
+  schedule:
+    - cron: "41 13 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build report
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: python -m pipeline.agent_traffic > report.md && cat report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Update the Agent traffic issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh label create agent-traffic --color 0E8A16 --description "Weekly AI agent usage" --force
+          n=$(gh issue list --label agent-traffic --state open --json number --jq '.[0].number')
+          if [ -n "$n" ]; then gh issue comment "$n" --body-file report.md
+          else gh issue create --title "Agent traffic" --label agent-traffic --body-file report.md; fi

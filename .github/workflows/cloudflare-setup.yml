@@ -1,0 +1,42 @@
+name: Cloudflare setup
+
+# One-off, manual: creates the KV namespace that stores alert signups and
+# saved searches, and checks what the deploy token can do. Its id then goes
+# into wrangler.toml (bindings for this Pages project are defined there, not in
+# the dashboard).
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Find or create the SUBSCRIBERS KV namespace
+        run: |
+          api="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/storage/kv/namespaces"
+          auth="Authorization: Bearer $CLOUDFLARE_API_TOKEN"
+          list=$(curl -s "$api?per_page=100" -H "$auth")
+          echo "List namespaces success: $(echo "$list" | jq -r '.success') $(echo "$list" | jq -c '.errors')"
+          id=$(echo "$list" | jq -r '.result[]? | select(.title=="scrubshifts-subscribers") | .id')
+          if [ -z "$id" ]; then
+            created=$(curl -s -X POST "$api" -H "$auth" -H "Content-Type: application/json" --data '{"title":"scrubshifts-subscribers"}')
+            echo "Create success: $(echo "$created" | jq -r '.success') $(echo "$created" | jq -c '.errors')"
+            id=$(echo "$created" | jq -r '.result.id // empty')
+          fi
+          echo "KV_NAMESPACE_ID=${id:-none}"
+          echo "### KV namespace id: \`${id:-none}\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Check Analytics Engine read access
+        run: |
+          r=$(curl -s -o /tmp/ae.txt -w "%{http_code}" -X POST \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/analytics_engine/sql" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" --data "SHOW TABLES")
+          echo "Analytics Engine SQL: HTTP $r"; head -c 300 /tmp/ae.txt | tr '{}' '()'; echo
+          echo "### Analytics Engine SQL access: HTTP $r" >> "$GITHUB_STEP_SUMMARY"

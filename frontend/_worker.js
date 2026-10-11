@@ -1,4 +1,4 @@
-import { aiAgentFamily, handleAgentRequest, isAgentPath } from "./_agent.js";
+import { aiAgentFamily, handleAgentRequest, isAgentPath, recordMetric } from "./_agent.js";
 // Pages ignores functions/ when _worker.js exists, so the worker routes it.
 import { onRequestOptions as subscribeOptions, onRequestPost as subscribePost } from "./functions/api/subscribe.js";
 
@@ -325,6 +325,7 @@ export default {
       console.log(
         JSON.stringify({ evt: "ai_fetch", family: ai.family, agent: ai.agent, path: url.pathname }),
       );
+      recordMetric(env, { kind: "crawl", path: url.pathname, detail: ai.agent, family: ai.family, status: 0 });
     }
 
     // Legacy URL scheme: the site previously served job detail pages at

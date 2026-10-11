@@ -190,24 +190,15 @@ def run(sitemap_paths: list[str]):
         logger.warning("  No URLs to submit")
         return
 
-    # Category/landing pages: always submit (they rotate their job lists daily
-    # and are the pages we most want kept fresh in the index).
-    page_urls = [loc for loc, _ in entries if "/listing/" not in loc]
-
-    # Job detail pages: the daily quota is far smaller than the catalog, so
-    # spend it on the NEWEST jobs (by sitemap lastmod, descending). Re-pinging
-    # the same first-N URLs every run — the previous behavior — meant freshly
-    # added jobs were never notified and often expired before getting indexed.
+    # The Indexing API is only for pages with JobPosting markup, so spend the
+    # daily quota on job pages alone: the NEWEST ones (by sitemap lastmod,
+    # descending). Category pages are left to sitemaps and normal crawling;
+    # submitting them used to consume the whole quota (~2.4k pages vs 200/day).
     job_entries = [(loc, lm) for loc, lm in entries if "/listing/" in loc]
     job_entries.sort(key=lambda e: e[1], reverse=True)
-    job_urls = [loc for loc, _ in job_entries]
-
-    # Category pages first, then fill remaining quota with the newest jobs.
-    submit_urls = page_urls + job_urls
-    jobs_submitted = max(0, min(len(job_urls), MAX_URLS_PER_RUN - len(page_urls)))
-    logger.info("  Submitting %d URLs (%d pages + %d newest jobs, capped at %d)",
-                min(len(submit_urls), MAX_URLS_PER_RUN), len(page_urls), jobs_submitted,
-                MAX_URLS_PER_RUN)
+    submit_urls = [loc for loc, _ in job_entries]
+    logger.info("  Submitting %d newest job URLs (of %d, capped at %d)",
+                min(len(submit_urls), MAX_URLS_PER_RUN), len(submit_urls), MAX_URLS_PER_RUN)
 
     result = notify_urls(submit_urls, access_token)
     logger.info("  Done: %d sent, %d success, %d errors",

@@ -131,6 +131,13 @@ jobs:
         if: success()
         run: python -m pipeline.indexnow frontend/sitemap-pages.xml frontend/sitemap-jobs-*.xml || true
 
+      - name: Deliver saved-search webhooks
+        if: success()
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: python -m pipeline.notify_subscriptions || true
+
       # A failed run means the site stops updating. Open (or comment on) one
       # issue so the failure is visible instead of silent.
       - name: Report failure

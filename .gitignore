@@ -12,3 +12,4 @@ frontend/sitemap-*.xml
 .wrangler/
 node_modules/
 .pytest_cache/
+data/pipeline_degraded.txt

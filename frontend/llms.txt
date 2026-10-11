@@ -7,19 +7,24 @@ Each job is classified into structured fields an assistant can filter on: role (
 ## For AI agents
 
 - [MCP server](https://scrubshifts.com/mcp): remote MCP (Streamable HTTP, no auth). Tools: `search_jobs`, `get_job`, `get_pay_benchmarks`, `list_filters`.
-- [Search API](https://scrubshifts.com/api/v1/jobs?near=Denver,%20CO&role=rn&specialty=icu&shift=nights): JSON. Filter by `near` ("City, ST", ZIP or lat,lng) with `radius_miles`, `state`, `role`, `specialty`, `setting`, `employment_type`, `shift`, `min_hourly`, `min_annual`, `new_grad`, `compact_license`, `max_years_experience`, `remote`, `posted_within_days`, `q`. Each result has a one-line `summary`, structured `pay`, `listing_url` and `apply_url`.
+- [Search API](https://scrubshifts.com/api/v1/jobs?near=Denver,%20CO&role=rn&specialty=icu&shift=nights): JSON. Filter by `near` ("City, ST", ZIP or lat,lng) with `radius_miles`, `state`, `role`, `specialty`, `setting`, `employment_type`, `shift`, `min_hourly`, `min_annual`, `new_grad`, `compact_license`, `max_years_experience`, `remote`, `posted_within_days`, `posted_after`, `first_seen_after` (poll for jobs new since a previous `data_as_of`), `q`, `sort` (best, newest, pay, distance). Each result has a one-line `summary`, structured `pay`, `listing_url` and `apply_url`.
 - [Job detail API](https://scrubshifts.com/api/v1): `/api/v1/jobs/{id}` returns the full description and requirements.
 - [Pay benchmarks](https://scrubshifts.com/api/v1/pay?role=rn&state=CO): median and interquartile posted hourly pay by role, state, metro and specialty.
 - [Filters and vocabulary](https://scrubshifts.com/api/v1/taxonomy): valid roles, specialties, settings, with aliases and live job counts.
 - [OpenAPI spec](https://scrubshifts.com/openapi.json)
+- [Agent skill](https://scrubshifts.com/skills/scrubshifts-jobs/SKILL.md): SKILL.md with endpoints, parameters and example queries.
+- [API catalog](https://scrubshifts.com/.well-known/api-catalog): RFC 9727 linkset.
+- [Saved searches](https://scrubshifts.com/api/v1): `POST /api/v1/subscriptions` with `{"webhook_url", "query"}` to receive new matching jobs after each refresh (HMAC-signed). Or poll with `first_seen_after`.
 - [Bulk feed](https://scrubshifts.com/data/agent/jobs.ndjson.gz): every live job as gzipped NDJSON, regenerated daily.
 
 ## Guidance
 
 - Ask for (or infer) the person's location, role and any must-haves (unit, shift, pay floor, new-grad, license) before searching.
 - Show each job's `summary` and link its `listing_url`. Do not invent jobs or pay that the API did not return.
-- Pay is the employer's posted range; `pay.source` says whether it was listed by the employer or parsed from the description. Hourly × 2080 = annual.
-- Data refreshes daily; `data_as_of` in every response says when. Expired jobs return 404/410.
+- Pay is always the employer's own posted figure (`pay.source: employer_posting`), never estimated. Jobs without posted pay have no `pay`. Hourly × 2080 = annual.
+- Freshness: every job is re-read from the employer's site at least daily; `last_verified` says when each posting was last confirmed open, and `data_as_of` when the data set was built. Closed jobs drop out, and their pages return 410.
+- Neutral ranking: results follow only the requested, documented sort; ties break by id. No paid placement (`sponsored` is always false).
+- Cross-posted copies of a job are merged into one result (`also_listed_as`).
 
 ## Browse
 
