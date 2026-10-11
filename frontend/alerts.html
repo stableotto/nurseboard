@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Job Alerts - Get New Nursing Jobs Delivered Daily | ScrubShifts</title>
-  <meta name="description" content="Get new nursing jobs delivered to your inbox daily. Choose your role and location — we'll send matching jobs straight from employers.">
+  <title>Job Alerts (Coming Soon) | ScrubShifts</title>
+  <meta name="description" content="Email job alerts are coming soon. Join the list with your role and location and we'll let you know when they launch.">
   <link rel="canonical" href="https://scrubshifts.com/alerts">
-  <meta property="og:title" content="Job Alerts | ScrubShifts">
-  <meta property="og:description" content="Get new nursing jobs delivered to your inbox daily.">
+  <meta property="og:title" content="Job Alerts (Coming Soon) | ScrubShifts">
+  <meta property="og:description" content="Email job alerts are coming soon. Join the list to hear when they launch.">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="css/style.css">
 </head>
@@ -32,8 +32,8 @@
 
   <main class="container">
     <section class="alerts-hero">
-      <h1>Get nursing jobs delivered daily</h1>
-      <p class="alerts-sub">Choose your role and location. We'll email you new matching jobs every morning — direct from employers, no recruiter spam.</p>
+      <h1>Job alerts are coming soon</h1>
+      <p class="alerts-sub">Tell us your role and location and we'll email you when alerts launch. Until then, <a href="/">browse all jobs</a> — listings refresh from employer career sites throughout the day.</p>
     </section>
 
     <form id="alert-form" class="alert-form">
@@ -149,7 +149,7 @@
           </select>
         </div>
       </div>
-      <button type="submit" class="alert-btn">Get daily alerts</button>
+      <button type="submit" class="alert-btn">Join the list</button>
       <p id="alert-msg" class="alert-msg"></p>
     </form>
 
@@ -159,12 +159,12 @@
         <p>Every job links to the employer's career page. No recruiters, no middlemen.</p>
       </div>
       <div class="feature">
-        <h3>Delivered before your shift</h3>
-        <p>New jobs sent every morning so you see them first.</p>
+        <h3>Updated throughout the day</h3>
+        <p>Listings refresh from employer career sites several times a day, so you can check anytime.</p>
       </div>
       <div class="feature">
-        <h3>Unsubscribe anytime</h3>
-        <p>One click to stop. No spam, no selling your email.</p>
+        <h3>No spam</h3>
+        <p>We'll only email you about alerts. We never sell your email.</p>
       </div>
     </section>
   </main>
@@ -220,7 +220,7 @@
       const msg = document.getElementById("alert-msg");
       const btn = e.target.querySelector("button");
       btn.disabled = true;
-      btn.textContent = "Subscribing...";
+      btn.textContent = "Joining...";
 
       try {
         const resp = await fetch("/api/subscribe", {
@@ -236,7 +236,7 @@
         });
         const data = await resp.json();
         if (data.ok) {
-          msg.textContent = "You're subscribed! Check your inbox tomorrow morning.";
+          msg.textContent = "You're on the list. We'll email you when alerts launch.";
           msg.style.color = "#059669";
           e.target.reset();
         } else {
@@ -248,7 +248,7 @@
         msg.style.color = "#ef4444";
       }
       btn.disabled = false;
-      btn.textContent = "Get daily alerts";
+      btn.textContent = "Join the list";
     });
   </script>
   <script>
