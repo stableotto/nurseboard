@@ -33,8 +33,9 @@ const POLICIES = {
     "last_verified is when the posting was last confirmed open; data_as_of is when this data set was built.",
   ranking:
     "Results are ordered only by the requested sort: best (+2 for listed pay, -1 per week since posting, " +
-    "-1 per 10 miles), newest, pay, or distance, with ties broken by job id. There is no paid placement; " +
-    "if sponsored listings are ever added they will carry sponsored: true and never change this ordering.",
+    "-1 per 10 miles), newest, pay, or distance, with ties broken by job id. Employers can pay for sponsored " +
+    "placement: sponsored listings are always labeled sponsored: true and may appear ahead of other results. " +
+    "Every result with sponsored: false is ordered only by the requested sort.",
   pay:
     "Pay is the employer's own posted figure (ATS pay field or the range in the posting) and is never " +
     "estimated. Jobs without posted pay have no pay field. Annual = hourly x 2080.",
@@ -127,8 +128,8 @@ const SHIFT_ALIASES = {
   weekends: ["weekends", "weekend", "weekend only", "baylor"],
   prn: ["prn"],
 };
-// Documented, deterministic orderings. No paid placement exists or affects
-// any of them; ties always break by job id.
+// Documented, deterministic orderings; ties always break by job id. Paid
+// placement may only put sponsored: true listings first, never reorder the rest.
 const SORTS = ["best", "newest", "pay", "distance"];
 
 function norm(s) {
@@ -766,7 +767,7 @@ const SEARCH_PROPS = {
   posted_after: { type: "string", description: "Only jobs the employer posted on or after this ISO date/time." },
   first_seen_after: { type: "string", description: "Only jobs that first appeared on ScrubShifts on or after this ISO time. For recurring checks, pass the previous response's data_as_of to get just the new jobs." },
   q: { type: "string", description: "Free-text words that must appear in the title, employer or location, e.g. an employer name." },
-  sort: { type: "string", enum: SORTS, description: "best (default): +2 if pay is listed, -1 per week since posting, -1 per 10 miles. Or newest, pay, distance (default when near is set). No paid placement affects ordering." },
+  sort: { type: "string", enum: SORTS, description: "best (default): +2 if pay is listed, -1 per week since posting, -1 per 10 miles. Or newest, pay, distance (default when near is set). Sponsored listings (sponsored: true) may appear first." },
   limit: { type: "number", description: `Results per page, default ${DEFAULT_LIMIT}, max ${MAX_LIMIT}.` },
   offset: { type: "number", description: "Pagination offset; use next_offset from the previous response." },
 };

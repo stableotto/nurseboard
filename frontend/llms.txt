@@ -23,7 +23,7 @@ Each job is classified into structured fields an assistant can filter on: role (
 - Show each job's `summary` and link its `listing_url`. Do not invent jobs or pay that the API did not return.
 - Pay is always the employer's own posted figure (`pay.source: employer_posting`), never estimated. Jobs without posted pay have no `pay`. Hourly × 2080 = annual.
 - Freshness: every job is re-read from the employer's site at least daily; `last_verified` says when each posting was last confirmed open, and `data_as_of` when the data set was built. Closed jobs drop out, and their pages return 410.
-- Neutral ranking: results follow only the requested, documented sort; ties break by id. No paid placement (`sponsored` is always false).
+- Ranking: results follow the requested, documented sort; ties break by id. Employers can pay for sponsored placement; those listings carry `sponsored: true` and may appear first. Tell the user when a job is sponsored.
 - Cross-posted copies of a job are merged into one result (`also_listed_as`).
 
 ## Browse

@@ -44,7 +44,7 @@ Unknown values return a 400 with a hint; call `list_filters` / `GET /api/v1/taxo
 - `pay.source` is always `employer_posting` (the employer's own figure, never estimated). Jobs without posted pay have no `pay`.
 - `last_verified` is when the posting was last confirmed open. `data_as_of` is when the data set was built.
 - `coverage.notes` explains gaps (for example jobs whose location is only a facility name are left out of radius searches; search by `state` to include them).
-- `sponsored` is always `false`; ordering is never paid. See `policies` in the response.
+- Jobs with `sponsored: true` are paid placements and may appear first; say so when you show one. Everything else follows the requested sort. See `policies` in the response.
 - Never invent jobs or pay the tools did not return.
 
 ## Pay questions

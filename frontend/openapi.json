@@ -180,7 +180,7 @@
             "name": "sort",
             "in": "query",
             "required": false,
-            "description": "best (default): +2 if pay is listed, -1 per week since posting, -1 per 10 miles; newest; pay; distance (default with near). Ties break by id. No paid placement.",
+            "description": "best (default): +2 if pay is listed, -1 per week since posting, -1 per 10 miles; newest; pay; distance (default with near). Ties break by id. Sponsored listings (sponsored: true) may appear first; the rest follow this sort.",
             "schema": {
               "type": "string",
               "enum": [
@@ -725,7 +725,7 @@
           },
           "sponsored": {
             "type": "boolean",
-            "description": "Always false today. Sponsored listings, if ever added, are labeled and never reorder results."
+            "description": "True when an employer paid for placement. Sponsored listings may appear ahead of other results; everything with sponsored false follows the requested sort."
           },
           "also_listed_as": {
             "type": "array",
