@@ -81,7 +81,9 @@
     <section class="promote-form-section">
       <h2>Get started</h2>
       <p class="promote-form-sub">Tell us about your hiring needs and we'll put together a custom plan to get your roles filled faster.</p>
-      <form class="employer-form" id="employer-form">
+      <form class="employer-form" id="employer-form" action="https://formspree.io/f/mgaaqnpq" method="POST">
+        <input type="hidden" name="_subject" value="ScrubShifts employer inquiry">
+        <input type="text" name="_gotcha" style="display:none" tabindex="-1" autocomplete="off">
         <div class="form-row">
           <div class="form-field">
             <label for="company">Organization name</label>
@@ -138,23 +140,36 @@
       });
     }
 
-    // Form submission via mailto fallback (no backend needed)
-    document.getElementById('employer-form').addEventListener('submit', function(e) {
+    // Form submission → Formspree (plain POST still works if JS fails)
+    document.getElementById('employer-form').addEventListener('submit', async function(e) {
       e.preventDefault();
-      const data = new FormData(this);
-      const company = data.get('company');
-      const name = data.get('name');
-      const email = data.get('email');
-      const roles = data.get('roles');
-      const message = data.get('message');
-
-      const subject = encodeURIComponent(`ScrubShifts inquiry from ${company}`);
-      const body = encodeURIComponent(
-        `Name: ${name}\nCompany: ${company}\nEmail: ${email}\nOpen roles: ${roles}\n\n${message}`
-      );
-      window.location.href = `mailto:hello@scrubshifts.com?subject=${subject}&body=${body}`;
-
-      document.getElementById('form-msg').textContent = 'Opening your email client...';
+      const form = this;
+      const msg = document.getElementById('form-msg');
+      const btn = form.querySelector('.form-submit');
+      const data = new FormData(form);
+      data.set('_subject', `ScrubShifts inquiry from ${data.get('company')}`);
+      data.set('_replyto', data.get('email'));
+      btn.disabled = true;
+      msg.textContent = 'Sending...';
+      try {
+        const res = await fetch(form.action, {
+          method: 'POST',
+          body: data,
+          headers: { 'Accept': 'application/json' }
+        });
+        if (res.ok) {
+          form.reset();
+          msg.textContent = "Thanks! We got your request and will reply within one business day.";
+        } else {
+          const json = await res.json().catch(() => ({}));
+          msg.textContent = (json.errors && json.errors.map(x => x.message).join(', ')) ||
+            'Something went wrong. Please email hello@scrubshifts.com.';
+        }
+      } catch (err) {
+        msg.textContent = 'Network error. Please try again or email hello@scrubshifts.com.';
+      } finally {
+        btn.disabled = false;
+      }
     });
   </script>
 </body>
