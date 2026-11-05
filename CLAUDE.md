@@ -1,7 +1,7 @@
 # ScrubShifts — Project Instructions
 
 ## What This Is
-Healthcare job aggregator (scrubshifts.com). ~8K nursing + allied health jobs from 500+ employers, updated daily via automated pipeline.
+Healthcare job aggregator (scrubshifts.com). ~100K nursing + allied health jobs from 2,500+ employers, updated daily via automated pipeline.
 
 ## Stack
 - **Pipeline**: Python (`pipeline/`) → SQLite (`data/nursing_jobs.db`)

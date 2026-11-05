@@ -2350,7 +2350,7 @@ def _generate_homepage(list_jobs: list[dict]):
     hub_states = _build_hub_section_html("Browse by State", state_links[:20])
     hub_companies = _build_hub_section_html("Top Employers", company_links)
     homepage = _page_shell(
-        title="ScrubShifts - Healthcare Jobs Aggregated Daily from 500+ Employers",
+        title="ScrubShifts - Healthcare Jobs Aggregated Daily from 2,500+ Employers",
         meta_desc=f"Browse {len(list_jobs)} nursing and allied health jobs aggregated daily from top healthcare employers. RN, PT, OT, SLP, CNA, and more. Salary data and direct application links.",
         canonical=f"{SITE_URL}/",
         css_path="css/style.css",
